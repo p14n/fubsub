@@ -1,0 +1,6 @@
+{:deps {org.foundationdb/fdb-java {:mvn/version "7.1.42"}}
+
+ :aliases {:kaocha {:extra-paths ["test"]
+                    :main-opts ["-m" "kaocha.runner"]
+                    :extra-deps {com.taoensso/nippy {:mvn/version "3.4.2"}
+                                 lambdaisland/kaocha {:mvn/version "1.87.1366"}}}}}
