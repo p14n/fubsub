@@ -8,7 +8,9 @@ consumer_head
 [topic consumer] messageid
 
 consumer_processing
-[topic consumer messageid key nodeid] status,updated 
+[topic consumer messageid nodeid] status,updated 
+key_processing
+[topic consumer key] messageid 
 
 consumer_heartbeat
 [topic consumer nodeid] timestamp 
@@ -42,15 +44,18 @@ in new tx
 
 Consumer loop
 - Waits for new messages
-- Then waits for new threads
+- Then waits for new threads (maybe reverse these - dont grab what you cant handle)
 - Grabs as many messages as it can handle immediately
 - Inserts to processing and moves the head up
 - Fetches unprocessed and assigns to processors (include errored some time ago)
+  - where topic, consumer, status, nodeid
 - Loops
 
 Processor loop
 - Receives message
+  - where topic, consumer, messageid
 - Checks for messages with the same key (does nothing with message if unprocessed keys exist)
+  - where topic, consumer, key, messageid, status (key_processing)
 - processes message
 - deletes status record when done
 - if error, retry immediately, then updates status to error
@@ -61,3 +66,9 @@ Controller loop
 - resets processing messages for dead nodes
 - removes dead nodes
 
+
+Processor key ring
+- uses consistent hash algorithm - mod of hash should be fine
+- has an entry for each mod (1000 threads, 1000 entries)
+- when a thread is started for a processor, the mod is added to the 'in use' ring
+- subsequent messages with the same mod must wait for the in use to become free
