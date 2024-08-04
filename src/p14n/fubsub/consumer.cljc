@@ -8,12 +8,12 @@
 (def processor-status-processing "p")
 
 (defn ordered-msgs->consumer-head-tx [topic consumer msgs]
-  (let [head (-> msgs last first last)]
-    [[consumer-head-key-part topic consumer] head]))
+  (let [[_ _ msg-id] (-> msgs last first)]
+    [[consumer-head-key-part topic consumer] msg-id]))
 
 (defn topic-msgs->consumer-processing-txs [topic consumer node msgs]
-  (mapv (fn [[k _]]
-          [[consumer-processing-key-part topic consumer (last k)] [processor-status-available node]])
+  (mapv (fn [[[_ _ msg-id key] _]]
+          [[consumer-processing-key-part topic consumer msg-id key] [processor-status-available node]])
         msgs))
 
 (defn select-new-messages [{:keys [topic
