@@ -43,9 +43,9 @@
             [[consumer-processing-key-part topic1 consumer1 "msg07" "001"] [processor-status-available node1]]
             [[consumer-processing-key-part topic1 consumer1 "msg08" "002"] [processor-status-available node1]]
             [[consumer-processing-key-part topic1 consumer1 "msg09" "003"] [processor-status-available node1]]]
-           (consumer/select-new-messages  {:topic topic1
-                                           :consumer consumer1
-                                           :node node1
-                                           :get-value tu/get-value
-                                           :get-range-after tu/get-range-after
-                                           :threads 10})))))
+           (consumer/select-new-messages {:get-range-after tu/get-range-after
+                                          :get-value tu/get-value
+                                          :threads 10}
+                                         {:topic topic1
+                                          :consumer consumer1
+                                          :node node1})))))

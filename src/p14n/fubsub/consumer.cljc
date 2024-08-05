@@ -13,12 +13,9 @@
           [[consumer-processing-key-part topic consumer msg-id key] [processor-status-available node]])
         msgs))
 
-(defn select-new-messages [{:keys [topic
-                                   consumer
-                                   node
-                                   get-value
-                                   get-range-after
-                                   threads]}]
+(defn select-new-messages
+  [{:keys [get-range-after threads get-value]}
+   {:keys [topic consumer node]}]
   (let [head (get-value [consumer-head-key-part topic consumer])
         msgs (get-range-after [topic-key-part topic head] threads)]
     (concat [(ordered-msgs->consumer-head-tx topic consumer msgs)]

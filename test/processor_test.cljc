@@ -19,40 +19,40 @@
   (reset-db)
   (testing "Processor finds an existing key in flight"
     (is (= ["msg01"]
-           (processor/check-for-key-in-flight  {:topic topic1
-                                                :consumer consumer1
-                                                :messageid "msg02"
-                                                :key "001"
-                                                :get-range-before tu/get-range-before}))))
+           (processor/check-for-key-in-flight {:get-range-before tu/get-range-before}
+                                              {:topic topic1
+                                               :consumer consumer1
+                                               :messageid "msg02"
+                                               :key "001"}))))
   (testing "Processor finds no existing key in flight"
     (reset! tu/db (into (sorted-map)
                         {[consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1]}))
     (is (= []
-           (processor/check-for-key-in-flight  {:topic topic1
-                                                :consumer consumer1
-                                                :messageid "msg02"
-                                                :key "001"
-                                                :get-range-before tu/get-range-before})))))
+           (processor/check-for-key-in-flight {:get-range-before tu/get-range-before}
+                                              {:topic topic1
+                                               :consumer consumer1
+                                               :messageid "msg02"
+                                               :key "001"})))))
 
 (deftest testing-processor-marking
   (testing "Processor marks a message as processing"
     (reset-db)
-    (processor/mark-as-processing {:topic topic1
+    (processor/mark-as-processing {:update tu/put-all}
+                                  {:topic topic1
                                    :consumer consumer1
                                    :messageid "msg01"
                                    :key "001"
-                                   :node node1
-                                   :update tu/put-all})
+                                   :node node1})
     (is (= {[consumer-processing-key-part topic1 consumer1 "msg01" "001"] [processor-status-processing node1]
             [consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1]}
            @tu/db)))
 
   (testing "Processor removes a message as processing"
     (reset-db)
-    (processor/remove-processing-mark {:topic topic1
+    (processor/remove-processing-mark {:delete tu/delete-all}
+                                      {:topic topic1
                                        :consumer consumer1
                                        :messageid "msg01"
-                                       :key "001"
-                                       :delete tu/delete-all})
+                                       :key "001"})
     (is (= {[consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1]}
            @tu/db))))
