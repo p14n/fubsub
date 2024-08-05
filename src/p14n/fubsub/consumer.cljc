@@ -1,11 +1,8 @@
-(ns p14n.fubsub.consumer)
-
-(def consumer-head-key-part "ch")
-(def consumer-processing-key-part "cp")
-(def topic-key-part "tp")
-
-(def processor-status-available "a")
-(def processor-status-processing "p")
+(ns p14n.fubsub.consumer
+  (:require [p14n.fubsub.common :refer [consumer-head-key-part
+                                        consumer-processing-key-part
+                                        topic-key-part
+                                        processor-status-available]]))
 
 (defn ordered-msgs->consumer-head-tx [topic consumer msgs]
   (let [[_ _ msg-id] (-> msgs last first)]

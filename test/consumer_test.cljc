@@ -1,11 +1,11 @@
 (ns consumer-test
-  (:require [clojure.string :as str]
-            [clojure.test :refer [deftest is testing]]
+  (:require [clojure.test :refer [deftest is testing]]
             [test-util :as tu]
-            [p14n.fubsub.consumer :as consumer :refer [consumer-head-key-part
-                                                       consumer-processing-key-part
-                                                       topic-key-part
-                                                       processor-status-available]]))
+            [p14n.fubsub.common :refer [consumer-head-key-part
+                                        consumer-processing-key-part
+                                        topic-key-part
+                                        processor-status-available]]
+            [p14n.fubsub.consumer :as consumer]))
 
 ;; Consumer loop
 ;; - Waits for new messages
@@ -15,14 +15,6 @@
 ;; - Fetches unprocessed and assigns to processors (include errored some time ago)
 ;; - where topic, consumer, status, nodeid
 ;; - Loops
-
-
-;topic
-;(topic,messageid,key) = msg
-;consumer head
-;(topic, consumer) = messageid
-;processor
-;(topic,consumer,messageid,key) = (status,timestamp,nodeid)
 
 (def topic1 "topic1")
 (def consumer1 "consumer1")
@@ -39,8 +31,6 @@
                                     [topic-key-part topic1 "msg07" "001"] "msg07"
                                     [topic-key-part topic1 "msg08" "002"] "msg08"
                                     [topic-key-part topic1 "msg09" "003"] "msg09"})))
-
-
 
 (deftest testing-consumer
   (reset-db)

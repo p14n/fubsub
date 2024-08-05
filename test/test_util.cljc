@@ -15,6 +15,14 @@
          (take limit)
          (vec))))
 
+(defn <key-range [key m]
+  (let [last-key (last key)
+        idx (dec (count key))
+        kvs (key-range (drop-last key) m)]
+    (->> kvs
+         (take-while #(> 0 (compare (nth (first %) idx) last-key)))
+         (vec))))
+
 (def db (atom {}))
 
 (defn get-value [keys]
@@ -23,8 +31,24 @@
 (defn get-range-after [keys limit]
   (>key-range keys @db limit))
 
+(defn get-range-before [keys]
+  (<key-range keys @db))
+
 (defn get-range [keys]
   (key-range keys @db))
 
+(defn p> [x]
+  (println "p>" x)
+  x)
+
 (defn put-all [kvs]
-  (swap! db #(apply merge % kvs)))
+  (println "put-all" kvs)
+  (swap! db #(->> kvs
+                  (concat (vec %))
+                  (sort-by first)
+                  (into (sorted-map)))))
+
+(defn delete-all [ks]
+  (swap! db #(apply dissoc % ks)))
+
+
