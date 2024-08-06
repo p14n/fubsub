@@ -15,8 +15,33 @@
 
 (defn select-new-messages
   [{:keys [get-range-after threads get-value]}
+   {:keys [topic consumer]}]
+  (let [head (get-value [consumer-head-key-part topic consumer])]
+    (get-range-after [topic-key-part topic head] threads)))
+
+(defn select-new-messages-tx
+  [_ {:keys [topic consumer node msgs]}]
+  (concat [(ordered-msgs->consumer-head-tx topic consumer msgs)]
+          (topic-msgs->consumer-processing-txs topic consumer node msgs)))
+
+
+(defn topic-check
+  [{:keys [get-range-after threads get-value
+           put-all notify-processors] :as ctx}
    {:keys [topic consumer node]}]
-  (let [head (get-value [consumer-head-key-part topic consumer])
-        msgs (get-range-after [topic-key-part topic head] threads)]
-    (concat [(ordered-msgs->consumer-head-tx topic consumer msgs)]
-            (topic-msgs->consumer-processing-txs topic consumer node msgs))))
+  (let [msgs (select-new-messages {:get-range-after get-range-after
+                                   :get-value get-value
+                                   :threads threads}
+                                  {:topic topic
+                                   :consumer consumer
+                                   :node node})]
+    (when (seq msgs)
+      (put-all (select-new-messages-tx nil {:topic topic
+                                            :consumer consumer
+                                            :node node
+                                            :msgs msgs}))
+      (notify-processors ctx {:topic topic
+                              :consumer consumer
+                              :node node}))))
+
+
