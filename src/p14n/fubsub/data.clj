@@ -3,12 +3,6 @@
            [com.apple.foundationdb.tuple Tuple]
            [java.util.function Function]))
 
-;; :get-range-after tu/get-range-after
-;; :get-value tu/get-value
-;; :get-range-before tu/get-range-before
-;; :put-all tu/put-all
-;; :delete tu/delete-all
-
 (defonce fdb (FDB/selectAPIVersion 710))
 
 (defn open-db
