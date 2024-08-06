@@ -37,7 +37,7 @@
 (deftest testing-processor-marking
   (testing "Processor marks a message as processing"
     (reset-db)
-    (processor/mark-as-processing {:update tu/put-all}
+    (processor/mark-as-processing {:put-all tu/put-all}
                                   {:topic topic1
                                    :consumer consumer1
                                    :messageid "msg01"

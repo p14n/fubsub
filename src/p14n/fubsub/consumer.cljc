@@ -24,24 +24,20 @@
   (concat [(ordered-msgs->consumer-head-tx topic consumer msgs)]
           (topic-msgs->consumer-processing-txs topic consumer node msgs)))
 
-
 (defn topic-check
-  [{:keys [get-range-after threads get-value
-           put-all notify-processors] :as ctx}
+  [{:keys [put-all notify-processors] :as ctx}
    {:keys [topic consumer node]}]
-  (let [msgs (select-new-messages {:get-range-after get-range-after
-                                   :get-value get-value
-                                   :threads threads}
-                                  {:topic topic
-                                   :consumer consumer
-                                   :node node})]
+  (let [msgs (select-new-messages ctx {:topic topic
+                                       :consumer consumer
+                                       :node node})]
     (when (seq msgs)
-      (put-all (select-new-messages-tx nil {:topic topic
+      (put-all (select-new-messages-tx ctx {:topic topic
                                             :consumer consumer
                                             :node node
                                             :msgs msgs}))
       (notify-processors ctx {:topic topic
                               :consumer consumer
-                              :node node}))))
+                              :node node
+                              :msgs msgs}))))
 
 

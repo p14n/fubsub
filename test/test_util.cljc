@@ -49,6 +49,7 @@
                   (into (sorted-map)))))
 
 (defn delete-all [ks]
+  (println "delete-all" ks)
   (swap! db #(apply dissoc % ks)))
 
 

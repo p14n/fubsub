@@ -72,3 +72,11 @@ Processor key ring
 - has an entry for each mod (1000 threads, 1000 entries)
 - when a thread is started for a processor, the mod is added to the 'in use' ring
 - subsequent messages with the same mod must wait for the in use to become free
+
+
+;topic
+;(topic,messageid,key) = msg
+;consumer head
+;(topic, consumer) = messageid
+;processor
+;(topic,consumer,messageid,key) = (status,timestamp,nodeid)
