@@ -40,14 +40,14 @@
           handlers {topic1 [(fn [_ msg]
                               (println "Received" topic1 msg)
                               (swap! results conj msg))]}
-          context {:get-range-after tu/get-range-after
-                   :threads 10
+          context {:threads 10
+                   :notify-processors notify-processors-simple
+                   :handlers handlers
+                   :get-range-after tu/get-range-after
                    :get-value tu/get-value
                    :get-range-before tu/get-range-before
                    :put-all tu/put-all
-                   :delete tu/delete-all
-                   :notify-processors notify-processors-simple
-                   :handlers handlers}]
+                   :delete tu/delete-all}]
       (consumer/topic-check context {:topic topic1
                                      :consumer consumer1
                                      :node "node1"})

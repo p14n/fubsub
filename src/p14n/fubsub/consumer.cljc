@@ -14,10 +14,10 @@
         msgs))
 
 (defn select-new-messages
-  [{:keys [get-range-after threads get-value]}
+  [{:keys [get-range-after threads get-value] :as ctx}
    {:keys [topic consumer]}]
-  (let [head (get-value [consumer-head-key-part topic consumer])]
-    (get-range-after [topic-key-part topic head] threads)))
+  (let [head (get-value ctx [consumer-head-key-part topic consumer])]
+    (get-range-after ctx [topic-key-part topic head] threads)))
 
 (defn select-new-messages-tx
   [_ {:keys [topic consumer node msgs]}]
@@ -31,10 +31,10 @@
                                        :consumer consumer
                                        :node node})]
     (when (seq msgs)
-      (put-all (select-new-messages-tx ctx {:topic topic
-                                            :consumer consumer
-                                            :node node
-                                            :msgs msgs}))
+      (put-all ctx (select-new-messages-tx ctx {:topic topic
+                                                :consumer consumer
+                                                :node node
+                                                :msgs msgs}))
       (notify-processors ctx {:topic topic
                               :consumer consumer
                               :node node

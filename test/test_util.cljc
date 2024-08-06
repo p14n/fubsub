@@ -25,30 +25,23 @@
 
 (def db (atom {}))
 
-(defn get-value [keys]
+(defn get-value [_ keys]
   (get @db keys))
 
-(defn get-range-after [keys limit]
+(defn get-range-after [_ keys limit]
   (>key-range keys @db limit))
 
-(defn get-range-before [keys]
+(defn get-range-before [_ keys]
   (<key-range keys @db))
 
-(defn get-range [keys]
-  (key-range keys @db))
-
-(defn p> [x]
-  (println "p>" x)
-  x)
-
-(defn put-all [kvs]
+(defn put-all [_ kvs]
   (println "put-all" kvs)
   (swap! db #(->> kvs
                   (concat (vec %))
                   (sort-by first)
                   (into (sorted-map)))))
 
-(defn delete-all [ks]
+(defn delete-all [_ ks]
   (println "delete-all" ks)
   (swap! db #(apply dissoc % ks)))
 
