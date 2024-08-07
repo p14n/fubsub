@@ -25,10 +25,13 @@
        (.get tr)
        (.join)))
 
+;; (defn -range [tr begin end limit]
+;;   (let [b (pack-tuple begin)
+;;         e (pack-tuple end)]
+;;     (.join (.getRange tr b e limit))))
+
 (defn -range [tr begin end limit]
-  (let [b (pack-tuple begin)
-        e (pack-tuple end)]
-    (.join (.getRange tr b e limit))))
+  (.asList (.getRange tr begin end limit)))
 
 (defn -clear [tr keys]
   (->> keys
@@ -70,14 +73,29 @@
     (-clear tx ks)
     (transact! db #(-clear % ks))))
 
+(defn- append-bytes-to-packed-tuple [packed end-bytes]
+  (-> packed
+      (concat end-bytes)
+      (vec)
+      (byte-array)
+      (bytes)))
+
 (defn get-range-after [{:keys [tx db]} begin limit]
-  (let [end (conj (vec (drop 1 begin)) (byte 0xFF))]
+  (let [begin-packed (pack-tuple begin)
+        end-packed (-> begin
+                       (drop-last)
+                       (pack-tuple)
+                       (append-bytes-to-packed-tuple [0xFF 0x00]))]
     (if tx
-      (-range tx begin end limit)
-      (transact! db #(-range % begin end limit)))))
+      (-range tx begin-packed end-packed limit)
+      (transact! db #(-range % begin-packed end-packed limit)))))
 
 (defn get-range-before [{:keys [tx db]} end]
-  (let [begin (conj (vec (drop 1 end)) "")]
+  (let [end-packed (pack-tuple end)
+        begin-packed (-> end
+                         (drop-last)
+                         (pack-tuple)
+                         (append-bytes-to-packed-tuple [0x02 0x00]))]
     (if tx
-      (-range tx begin end ReadTransaction/ROW_LIMIT_UNLIMITED)
-      (transact! db #(-range % begin end ReadTransaction/ROW_LIMIT_UNLIMITED)))))
+      (-range tx begin-packed end-packed ReadTransaction/ROW_LIMIT_UNLIMITED)
+      (transact! db #(-range % begin-packed end-packed ReadTransaction/ROW_LIMIT_UNLIMITED)))))
