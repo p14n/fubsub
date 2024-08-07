@@ -25,11 +25,6 @@
        (.get tr)
        (.join)))
 
-;; (defn -range [tr begin end limit]
-;;   (let [b (pack-tuple begin)
-;;         e (pack-tuple end)]
-;;     (.join (.getRange tr b e limit))))
-
 (defn -range [tr begin end limit]
   (.asList (.getRange tr begin end limit)))
 
@@ -99,3 +94,10 @@
     (if tx
       (-range tx begin-packed end-packed ReadTransaction/ROW_LIMIT_UNLIMITED)
       (transact! db #(-range % begin-packed end-packed ReadTransaction/ROW_LIMIT_UNLIMITED)))))
+
+
+;;Read conversion
+;;From topic value - probably string but could be binary conversion
+;;From consumer head value - string/versionstamp
+;;From processing value - vector of strings
+;;From all keys - vector of strings, with one versionstamp entry
