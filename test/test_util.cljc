@@ -41,8 +41,10 @@
                   (sort-by first)
                   (into (sorted-map)))))
 
-(defn delete-all [_ ks]
-  (println "delete-all" ks)
-  (swap! db #(apply dissoc % ks)))
+(defn compare-and-clear [_ [k v]]
+  (println "compare-and-clear" k v)
+  (swap! db #(if (= v (get % k))
+               (dissoc % k)
+               (throw (ex-info "compare-and-clear failed" {:k k :v v :value (get % k) :db @db})))))
 
 

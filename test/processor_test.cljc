@@ -12,8 +12,8 @@
 
 (defn reset-db []
   (reset! tu/db (into (sorted-map)
-                      {[consumer-processing-key-part topic1 consumer1 "msg01" "001"] [processor-status-available node1]
-                       [consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1]})))
+                      {[consumer-processing-key-part topic1 consumer1 "msg01" "001"] [processor-status-available node1 "2024-08-08T14:48:26.715-00:00"]
+                       [consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1 "2024-08-08T14:48:26.715-00:00"]})))
 
 (deftest testing-processor-in-flight-checks
   (reset-db)
@@ -26,7 +26,7 @@
                                                :key "001"}))))
   (testing "Processor finds no existing key in flight"
     (reset! tu/db (into (sorted-map)
-                        {[consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1]}))
+                        {[consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1 "2024-08-08T14:48:26.715-00:00"]}))
     (is (= []
            (processor/check-for-key-in-flight {:get-range-before tu/get-range-before}
                                               {:topic topic1
@@ -42,17 +42,20 @@
                                    :consumer consumer1
                                    :messageid "msg01"
                                    :key "001"
-                                   :node node1})
-    (is (= {[consumer-processing-key-part topic1 consumer1 "msg01" "001"] [processor-status-processing node1]
-            [consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1]}
+                                   :node node1
+                                   :timestamp "2024-08-08T14:48:26.715-00:00"})
+    (is (= {[consumer-processing-key-part topic1 consumer1 "msg01" "001"] [processor-status-processing node1 "2024-08-08T14:48:26.715-00:00"]
+            [consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1 "2024-08-08T14:48:26.715-00:00"]}
            @tu/db)))
 
   (testing "Processor removes a message as processing"
-    (reset-db)
-    (processor/remove-processing-mark {:delete tu/delete-all}
+    ;(reset-db)
+    (processor/remove-processing-mark {:compare-and-clear tu/compare-and-clear}
                                       {:topic topic1
                                        :consumer consumer1
                                        :messageid "msg01"
-                                       :key "001"})
-    (is (= {[consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1]}
+                                       :key "001"
+                                       :node node1
+                                       :timestamp "2024-08-08T14:48:26.715-00:00"})
+    (is (= {[consumer-processing-key-part topic1 consumer1 "msg02" "001"] [processor-status-available node1 "2024-08-08T14:48:26.715-00:00"]}
            @tu/db))))
