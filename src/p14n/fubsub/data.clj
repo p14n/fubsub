@@ -25,18 +25,22 @@
 
 (defn versionstamp->id-string [vs]
   (if (instance? Versionstamp vs)
-    (some-> vs (str) (.substring 15) (cs/split #" ") (first) (.replace "\\x" "-"))
+    (some->> vs
+             (.getTransactionVersion)
+             (map #(String/format "%02X" (into-array Object [%])))
+             (cs/join "-"))
     (str vs)))
 
 (defn id-string->versionstamp [id]
-  (let [id-bytes (some->> (.split #"-" id)
-                          (map #(case %
-                                  "00" 0
-                                  (-> (BigInteger. % 16)
-                                      (.toByteArray)
-                                      (last))))
-                          (byte-array)
-                          (bytes))]
+  (let [id-bytes (some->>
+                  (.split #"-" id)
+                  (map #(case %
+                          "00" 0
+                          (-> (BigInteger. % 16)
+                              (.toByteArray)
+                              (last))))
+                  (byte-array)
+                  (bytes))]
     (Versionstamp/complete id-bytes 0)))
 
 (defn- append-bytes-to-packed-tuple [packed end-bytes]

@@ -94,7 +94,5 @@
                                      :consumer consumer1
                                      :node "node1"})
 
-      (is (= "hello" (-> @results
-                         (first)
-                         :data))))))
+      (is (= "hello" (-> @results (first) :data))))))
 
