@@ -55,9 +55,8 @@
                               :msgs msgs}))
     (if (<  (count msgs) threads) true false)))
 
-(defn consumer-loop [{:keys [consumer-poll-ms error-log info-log]}
-                     consumer-running?
-                     watch-semaphore
+(defn consumer-loop [{:keys [consumer-poll-ms error-log
+                             consumer-running? watch-semaphore info-log]}
                      topic-check-function
                      set-watch-function]
   (while (.get consumer-running?)

@@ -49,7 +49,7 @@
     (ccy/run-async
      (fn []
        (consumer/consumer-loop
-        ctx consumer-running? watch-semaphore
+        (merge ctx (u/quickmap consumer-running? watch-semaphore))
         #(consumer/topic-check ctx {:topic topic
                                     :consumer consumer-name
                                     :node node})

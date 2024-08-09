@@ -81,14 +81,3 @@
 
 (defn shutdown-executor []
   (.shutdown executor))
-
-
-;Use semaphore
-;consumer waits on (.tryAquire timeout)
-;watch calls release on semaphore, releasing consumer
-;consumer performs topic check
-;when complete, the consumer
-; - cycles if it got its full batch size last time 
-; - or checks if there is still an active watch (AtomicBoolean). If not, one is set on topic head key
-;when the watch is triggered, it drains the semaphoe, then releases
-;processors get their own v thread, locking on the existing key lock to avoid thrashing
