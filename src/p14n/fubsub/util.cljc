@@ -12,3 +12,9 @@
   (-> (LocalDateTime/now)
       (.atOffset ZoneOffset/UTC)
       (.format df)))
+
+(defmacro quickmap
+  "Create a map with keys matching parameter names and values matching parameter values"
+  [& args]
+  (let [p (cons 'list (map (juxt (comp keyword name) identity) args))]
+    `(into {} ~p)))

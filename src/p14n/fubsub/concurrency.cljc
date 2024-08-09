@@ -1,9 +1,12 @@
-(ns p14n.fubsub.locking
+(ns p14n.fubsub.concurrency
   (:import [java.util.concurrent.locks ReentrantLock]
-           [java.util.concurrent ConcurrentHashMap]
+           [java.util.concurrent ConcurrentHashMap Semaphore TimeUnit Executors]
+           [java.util.concurrent.atomic AtomicBoolean]
            [java.util.function BiFunction]))
 
-(def ^:private ^ConcurrentHashMap locks (ConcurrentHashMap.))
+(defonce executor (Executors/newVirtualThreadPerTaskExecutor))
+
+(defonce ^:private ^ConcurrentHashMap locks (ConcurrentHashMap.))
 
 (defn- unlock-if-locked-by-thread
   "If the current thread holds the `lock`, unlock it."
@@ -66,3 +69,26 @@
   [key]
   (let [[active _] (.compute locks key lock-remover)]
     active))
+
+(defn acquire-semaphore [s ms]
+  (.tryAcquire s ms TimeUnit/MILLISECONDS))
+
+(defn semaphore [n] (Semaphore. n))
+(defn atomic-boolean [state] (AtomicBoolean. state))
+
+(defn run-async [f]
+  (.submit executor f))
+
+(defn shutdown-executor []
+  (.shutdown executor))
+
+
+;Use semaphore
+;consumer waits on (.tryAquire timeout)
+;watch calls release on semaphore, releasing consumer
+;consumer performs topic check
+;when complete, the consumer
+; - cycles if it got its full batch size last time 
+; - or checks if there is still an active watch (AtomicBoolean). If not, one is set on topic head key
+;when the watch is triggered, it drains the semaphoe, then releases
+;processors get their own v thread, locking on the existing key lock to avoid thrashing

@@ -177,3 +177,9 @@
                (transact! db #(-range % begin-packed end-packed ReadTransaction/ROW_LIMIT_UNLIMITED)))
              (.get)
              (map key-value->vector))))
+
+(defn set-watch [{:keys [tx db]} keys callback]
+  (-> (if tx
+        (.watch tx (pack-tuple keys))
+        (transact! db #(.watch % (pack-tuple keys))))
+      (.thenRun callback)))

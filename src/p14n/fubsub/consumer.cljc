@@ -3,7 +3,9 @@
                                         consumer-processing-key-part
                                         topic-key-part
                                         processor-status-available]]
-            [p14n.fubsub.data :as d]))
+            [p14n.fubsub.data :as d]
+            [p14n.fubsub.concurrency :as ccy])
+  (:import [java.lang Exception]))
 
 (defn ordered-msgs->consumer-head-tx [topic consumer msgs]
   (let [[_ _ msg-id] (-> msgs last first)]
@@ -27,7 +29,12 @@
           (topic-msgs->consumer-processing-txs ctx data)))
 
 (defn topic-check
-  [{:keys [put-all notify-processors tx-wrapper] :as ctx}
+  "Check for new messages on the given topic/consumer. 
+   If new messages are found, put them in the processing queue and notify processors.
+   
+   Returns true if the number of messages was less than capacity, indicating 'complete'."
+
+  [{:keys [put-all notify-processors tx-wrapper threads] :as ctx}
    {:keys [topic consumer node]}]
   (let [msgs (tx-wrapper ctx
                          #(let [ctx-tx (d/ctx-with-tx ctx %)
@@ -45,15 +52,28 @@
       (notify-processors ctx {:topic topic
                               :consumer consumer
                               :node node
-                              :msgs msgs}))))
+                              :msgs msgs}))
+    (if (<  (count msgs) threads) true false)))
+
+(defn consumer-loop [{:keys [consumer-poll-ms error-log info-log]}
+                     consumer-running?
+                     watch-semaphore
+                     topic-check-function
+                     set-watch-function]
+  (while (.get consumer-running?)
+    (info-log "Waiting for messages")
+    (ccy/acquire-semaphore watch-semaphore consumer-poll-ms)
+    (loop []
+      (when (.get consumer-running?)
+        (info-log "Fetching messages")
+        (let [complete (try (topic-check-function)
+                            (catch Exception e
+                              (error-log "Failed to check topic" e)
+                              true))]
+          (if complete
+            (try (set-watch-function)
+                 (catch Exception e (error-log "Failed to set watch" e)))
+            (recur)))))))
 
 
-;Use semaphore
-;consumer waits on (.tryAquire timeout)
-;watch calls release on semaphore, releasing consumer
-;consumer performs topic check
-;when complete, the consumer
-; - cycles if it got its full batch size last time 
-; - or checks if there is still an active watch (AtomicBoolean). If not, one is set on topic head key
-;when the watch is triggered, it drains the semaphoe, then releases
-;processors get their own v thread, locking on the existing key lock to avoid thrashing
+

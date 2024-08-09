@@ -25,43 +25,56 @@
   (compare-and-clear ctx [[consumer-processing-key-part topic consumer messageid key] [processor-status-processing node timestamp]]))
 
 (defn process-message
-  [{:keys [get-value current-timestamp-function tx-wrapper] :as ctx}
+  [{:keys [get-value current-timestamp-function
+           tx-wrapper info-log error-log] :as ctx}
    {:keys [topic consumer node msg handler]}]
-  (let [[[_ _ messageid key] _] msg
-        processing-timestamp (current-timestamp-function)
-        in-flight (tx-wrapper ctx
-                              #(let [ctx-tx (d/ctx-with-tx ctx %)
-                                     in-flight (check-for-key-in-flight ctx-tx
-                                                                        {:topic topic
-                                                                         :consumer consumer
-                                                                         :messageid messageid
-                                                                         :key key})]
-                                 (when (not (seq in-flight))
-                                   (mark-as-processing ctx-tx
-                                                       {:topic topic
-                                                        :consumer consumer
-                                                        :messageid messageid
-                                                        :timestamp processing-timestamp
-                                                        :key key
-                                                        :node node}))
-                                 in-flight))]
-    (when (not (seq in-flight))
-      (tx-wrapper ctx
-                  #(let [ctx-tx (d/ctx-with-tx ctx %)
-                         human-readable-id (d/versionstamp->id-string messageid)
-                         [msg time type datacontenttype source] (get-value ctx-tx [topic-key-part topic messageid key])]
-                     (handler ctx-tx (-> {:subject key
-                                          :id human-readable-id
-                                          :data msg}
-                                         (assoc-if :time time)
-                                         (assoc-if :type type)
-                                         (assoc-if :datacontenttype datacontenttype)
-                                         (assoc-if :source source)))
-                     (remove-processing-mark ctx-tx
-                                             {:topic topic
-                                              :node node
-                                              :timestamp processing-timestamp
-                                              :consumer consumer
-                                              :messageid messageid
-                                              :key key}))))))
+  (loop [remaining-attempts 50]
+    (let [[[_ _ messageid key] _] msg
+          human-readable-id (d/versionstamp->id-string messageid)
+          processing-timestamp (current-timestamp-function)
+          minfo-log #(info-log (str "msg:" human-readable-id " " %))
+          merror-log #(error-log (concat [(str "msg:" human-readable-id " " %)] %&))
+          in-flight (tx-wrapper ctx
+                                #(let [ctx-tx (merge (d/ctx-with-tx ctx %)
+                                                     {:info-log minfo-log
+                                                      :error-log merror-log})
+                                       in-flight (check-for-key-in-flight ctx-tx
+                                                                          {:topic topic
+                                                                           :consumer consumer
+                                                                           :messageid messageid
+                                                                           :key key})]
+                                   (when (not (seq in-flight))
+                                     (mark-as-processing ctx-tx
+                                                         {:topic topic
+                                                          :consumer consumer
+                                                          :messageid messageid
+                                                          :timestamp processing-timestamp
+                                                          :key key
+                                                          :node node}))
+                                   in-flight))]
+      (if (not (seq in-flight))
+        (do (minfo-log "Starting processing")
+            (tx-wrapper ctx
+                        #(let [ctx-tx (d/ctx-with-tx ctx %)
+                               [msg time type datacontenttype source] (get-value ctx-tx [topic-key-part topic messageid key])]
+                           (handler (-> ctx-tx
+                                        (assoc :info-log minfo-log)
+                                        (assoc :error-log merror-log))
+                                    (-> {:subject key
+                                         :id human-readable-id
+                                         :data msg}
+                                        (assoc-if :time time)
+                                        (assoc-if :type type)
+                                        (assoc-if :datacontenttype datacontenttype)
+                                        (assoc-if :source source)))
+                           (remove-processing-mark ctx-tx
+                                                   {:topic topic
+                                                    :node node
+                                                    :timestamp processing-timestamp
+                                                    :consumer consumer
+                                                    :messageid messageid
+                                                    :key key}))))
+        (if (>= 0 remaining-attempts)
+          (minfo-log "Previous messages found for key after multiple attempts - stopping handler")
+          (recur (dec remaining-attempts)))))))
 

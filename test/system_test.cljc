@@ -44,6 +44,8 @@
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple
                    :handlers handlers
+                   :error-log println
+                   :info-log println
                    :get-range-after tu/get-range-after
                    :get-value tu/get-value
                    :get-range-before tu/get-range-before

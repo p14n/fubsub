@@ -38,6 +38,7 @@
     (doseq [msg msgs]
       (doseq [handler (get handlers topic)]
         (when handler
+
           (processor/process-message ctx {:topic topic
                                           :consumer consumer
                                           :node node
@@ -56,6 +57,8 @@
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple
                    :handlers handlers
+                   :error-log println
+                   :info-log println
                    :get-range-after d/get-range-after
                    :get-value d/get-value
                    :get-range-before d/get-range-before
@@ -84,6 +87,8 @@
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple
                    :handlers handlers
+                   :error-log println
+                   :info-log println
                    :get-range-after d/get-range-after
                    :get-value d/get-value
                    :get-range-before d/get-range-before
