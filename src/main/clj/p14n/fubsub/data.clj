@@ -1,5 +1,6 @@
 (ns p14n.fubsub.data
-  (:require [clojure.string :as cs])
+  (:require [clojure.string :as cs]
+            [p14n.fubsub.util :as u])
   (:import [com.apple.foundationdb FDB ReadTransaction MutationType]
            [com.apple.foundationdb.tuple Tuple Versionstamp]
            [java.util.function Function]))
@@ -145,7 +146,7 @@
           vt (Tuple/fromBytes (.getValue kv))]
       [(tuple->vector kt) (tuple->vector vt)])))
 
-(defn get-range-after [{:keys [tx db subspace]} begin limit]
+(defn get-range-after [{:keys [tx db subspace] :as ctx} begin limit]
   (let [begin-packed (pack-tuple begin subspace)
         end-packed (-> begin
                        (drop-last)
@@ -156,9 +157,8 @@
                            (transact! db #(-range % begin-packed end-packed limit)))
                          (.get)
                          (map key-value->vector))
-        ;key-length (+ (count subspace) (count begin))
         key-length (count begin)
-        first-key-match (= begin (take key-length (drop (count subspace) (ffirst results))))]
+        first-key-match (= begin (take key-length (u/key-without-subspace ctx (ffirst results))))]
     (if first-key-match
       (rest results)
       results)))

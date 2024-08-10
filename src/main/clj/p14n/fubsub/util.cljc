@@ -7,10 +7,13 @@
 
 (def df (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSSX"))
 
-(defn current-timestamp-string []
-  (-> (LocalDateTime/now)
-      (.atOffset ZoneOffset/UTC)
-      (.format df)))
+(defn current-timestamp-string
+  ([] (current-timestamp-string
+       (-> (LocalDateTime/now)
+           (.atOffset ZoneOffset/UTC))))
+  ([t]
+   (-> t
+       (.format df))))
 
 (defmacro quickmap
   "Create a map with keys matching parameter names and values matching parameter values"
@@ -20,3 +23,7 @@
 
 (defn ctx-with-tx [ctx tx]
   (assoc ctx :tx tx))
+
+(defn key-without-subspace [{:keys [subspace]} key]
+  (drop (count subspace) key))
+

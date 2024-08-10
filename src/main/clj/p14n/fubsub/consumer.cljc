@@ -7,9 +7,8 @@
             [p14n.fubsub.util :as u])
   (:import [java.lang Exception]))
 
-(defn ordered-msgs->consumer-head-tx [{:keys [subspace]}
-                                      topic consumer msgs]
-  (let [[_ _ msg-id] (->> msgs last first (drop (count subspace)))]
+(defn ordered-msgs->consumer-head-tx [ctx topic consumer msgs]
+  (let [[_ _ msg-id] (->> msgs last first (u/key-without-subspace ctx))]
     [[consumer-head-key-part topic consumer] [msg-id]]))
 
 (defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function]}

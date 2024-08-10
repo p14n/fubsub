@@ -1,42 +1,105 @@
 (ns p14n.fubsub.core
   (:require [p14n.fubsub.consumer :as consumer]
             [p14n.fubsub.processor :as processor]
-            [p14n.fubsub.common :as common :refer [topic-head-key-part]]
+            [p14n.fubsub.common :as common :refer [topic-head-key-part
+                                                   processor-status-available
+                                                   processor-status-processing]]
             [p14n.fubsub.data :as d]
             [p14n.fubsub.util :as u]
             [p14n.fubsub.concurrency :as ccy])
   (:import [java.util UUID]
            [java.lang Exception]
-           [java.io StringWriter PrintWriter]))
+           [java.io StringWriter PrintWriter]
+           [java.time LocalDateTime ZoneOffset]
+           [java.lang Thread]))
 
 (defn- stacktrace->string [e]
   (let [sw (StringWriter.)]
     (.printStackTrace e (PrintWriter. sw))
     (.toString sw)))
 
+(defn lock-and-process-message [{:keys [info-log error-log] :as ctx}
+                                {:keys [topic consumer] :as data}]
+  (let [lock-key (str topic "/" consumer "/" key)]
+    (info-log (str "Running process" lock-key))
+    (ccy/acquire-lock lock-key)
+    (info-log (str "Acquired lock " lock-key))
+    (try
+      (processor/process-message ctx data)
+      (catch Exception e (error-log "Error in processor" e))
+      (finally (ccy/release-lock lock-key)))))
+
+(defn now-minus-ms [ms]
+  (-> (LocalDateTime/now)
+      (.atOffset ZoneOffset/UTC)
+      (.minusNanos (* 1000000 ms))))
+
+(defn find-resubmitable [{:keys [resubmit-available-ms resubmit-processing-ms
+                                 current-timestamp-function put-all] :as ctx
+                          :or {resubmit-available-ms 2000}} topic consumer node]
+  (let [old-available-time (current-timestamp-function  (now-minus-ms resubmit-available-ms))
+        old-processing-time (when resubmit-processing-ms
+                              (current-timestamp-function (now-minus-ms resubmit-processing-ms)))
+        msgs (processor/get-all-processing ctx {:topic topic
+                                                :consumer consumer})
+        available (->> msgs
+                       (filter (fn [[_ [status _ timestamp]]]
+                                 (and (= status processor-status-available)
+                                      (> 0 (compare timestamp old-available-time))))))
+        processing (some->> (when old-processing-time msgs)
+                            (filter (fn [[_ [status _ timestamp]]]
+                                      (and (= status processor-status-processing)
+                                           (> 0 (compare timestamp old-processing-time))))))]
+    (when (seq processing)
+      (put-all ctx (->> processing
+                        (map (fn [[k _]] [(u/key-without-subspace ctx k)
+                                          [processor-status-available node (current-timestamp-function)]])))))
+    (->> (concat available processing)
+         (map #(->> % first (take-last 2) (vec))))))
+
+(defn resubmit-abandoned
+  [{:keys [tx-wrapper] :as ctx}
+   {:keys [topic consumer node] :as data}
+   resubmit-function]
+  (let [to-resubmit (tx-wrapper ctx #(find-resubmitable (u/ctx-with-tx ctx %) topic consumer node))]
+    (when (seq to-resubmit)
+      (resubmit-function ctx data to-resubmit))))
+
 (defn- notify-processors-async
-  [{:keys [handlers error-log info-log subspace] :as ctx}
+  [{:keys [handlers] :as ctx}
    {:keys [topic consumer node msgs]}]
   (doseq [msg msgs]
     (doseq [handler (get handlers topic)]
       (when handler
-        (let [msg-key (if subspace (drop (count subspace) (first msg)) (first msg))
-              [_ _ _ key] msg-key
-              _ (println "notify-processors-async" msg-key)
-              lock-key (str topic "/" consumer "/" key)]
+        (let [msg-key (u/key-without-subspace ctx (first msg))
+              [_ _ messageid key] msg-key]
           (ccy/run-async
-           #(do
-              (info-log (str "Running process" lock-key))
-              (ccy/acquire-lock lock-key)
-              (info-log (str "Acquired lock " lock-key))
-              (try
-                (processor/process-message ctx {:topic topic
-                                                :consumer consumer
-                                                :node node
-                                                :msg msg
-                                                :handler handler})
-                (catch Exception e (error-log "Error in processor" e))
-                (finally (ccy/release-lock lock-key))))))))))
+           #(lock-and-process-message ctx {:topic topic
+                                           :consumer consumer
+                                           :node node
+                                           :key key
+                                           :messageid messageid
+                                           :handler handler})))))))
+
+(defn run-resubmit-thread
+  [{:keys [consumer-running? error-log info-log resubmit-available-ms] :as context}
+   {:keys [topic consumer node] :as data}]
+  (while (.get consumer-running?)
+    (info-log "Running resubmit thread")
+    (try (resubmit-abandoned context data
+                             (fn [{:keys [handlers]} _ to-resubmit]
+                               (doseq [[msgid key] to-resubmit]
+                                 (doseq [handler (get handlers topic)]
+                                   (ccy/run-async
+                                    (fn [] (lock-and-process-message
+                                            context {:topic topic
+                                                     :consumer consumer
+                                                     :node node
+                                                     :key key
+                                                     :messageid msgid
+                                                     :handler handler})))))))
+         (catch Exception e (error-log "Error in resubmit" e)))
+    (Thread/sleep (or resubmit-available-ms 2000))))
 
 (defn start-topic-consumer [context {:keys [consumer-name topic node consumer-running? error-log info-log]}]
   (let [watch-semaphore (ccy/semaphore 1)
@@ -47,23 +110,26 @@
                                       (println (u/current-timestamp-string) consumer-name topic "ERROR" msg))))
         iinfo-log (or info-log #(println (u/current-timestamp-string) consumer-name topic "INFO" %))
         ctx (merge context {:error-log ierror-log
-                            :info-log iinfo-log})]
+                            :info-log iinfo-log}
+                   (u/quickmap consumer-running? watch-semaphore))]
     (ccy/run-async
      (fn []
-       (consumer/consumer-loop
-        (merge ctx (u/quickmap consumer-running? watch-semaphore))
-        #(consumer/topic-check ctx {:topic topic
-                                    :consumer consumer-name
-                                    :node node})
-        #(do (when (not (.get watch-active?))
-               (iinfo-log "Setting watch")
-               (.set watch-active? true)
-               (d/set-watch ctx [topic-head-key-part topic]
-                            (fn []
-                              (iinfo-log "Watch fired")
-                              (.set watch-active? false)
-                              (.drainPermits watch-semaphore)
-                              (.release watch-semaphore))))))))
+       (consumer/consumer-loop ctx
+                               #(consumer/topic-check ctx {:topic topic
+                                                           :consumer consumer-name
+                                                           :node node})
+                               #(do (when (not (.get watch-active?))
+                                      (iinfo-log "Setting watch")
+                                      (.set watch-active? true)
+                                      (d/set-watch ctx [topic-head-key-part topic]
+                                                   (fn []
+                                                     (iinfo-log "Watch fired")
+                                                     (.set watch-active? false)
+                                                     (.drainPermits watch-semaphore)
+                                                     (.release watch-semaphore))))))))
+    (ccy/run-async #(run-resubmit-thread ctx {:topic topic
+                                              :consumer consumer-name
+                                              :node node}))
     #(do (.drain watch-semaphore)
          (.release watch-semaphore))))
 

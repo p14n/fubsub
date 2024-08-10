@@ -25,12 +25,10 @@
 
 (defn process-message
   [{:keys [get-value current-timestamp-function
-           tx-wrapper info-log error-log id-formatter subspace] :as ctx}
-   {:keys [topic consumer node msg handler]}]
+           tx-wrapper info-log error-log id-formatter] :as ctx}
+   {:keys [topic consumer node messageid key handler]}]
   (loop [remaining-attempts 50]
-    (let [msg-key (if subspace (drop (count subspace) (first msg)) (first msg))
-          [_ _ messageid key] msg-key
-          human-readable-id (id-formatter messageid)
+    (let [human-readable-id (id-formatter messageid)
           processing-timestamp (current-timestamp-function)
           minfo-log #(info-log (str "msg:" human-readable-id " " %))
           merror-log #(error-log (concat [(str "msg:" human-readable-id " " %)] %&))
@@ -78,3 +76,7 @@
           (minfo-log "Previous messages found for key after multiple attempts - stopping handler")
           (recur (dec remaining-attempts)))))))
 
+(defn get-all-processing
+  [{:keys [get-range-after] :as ctx}
+   {:keys [topic consumer]}]
+  (some->> (get-range-after ctx [consumer-processing-key-part topic consumer ""] 100)))

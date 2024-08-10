@@ -1,15 +1,20 @@
 (ns fdb-test (:require [p14n.fubsub.consumer :as consumer]
                        [p14n.fubsub.processor :as processor]
+                       [p14n.fubsub.core :as core]
                        [p14n.fubsub.common :as common :refer [consumer-head-key-part
                                                               consumer-processing-key-part
                                                               topic-key-part
-                                                              topic-head-key-part]]
+                                                              topic-head-key-part
+                                                              processor-status-available
+                                                              processor-status-processing]]
                        [clojure.test :refer [deftest is testing]]
                        [p14n.fubsub.data :as d]
-                       [p14n.fubsub.producer :as producer]))
+                       [p14n.fubsub.producer :as producer]
+                       [p14n.fubsub.util :as u]))
 
 (def topic1 "topic1")
 (def consumer1 "consumer1")
+(def node1 "node1")
 
 (defn add-messages-to-db
   ([] (add-messages-to-db []))
@@ -28,6 +33,8 @@
                                  [[topic-key-part topic1 "msg09" "003"] ["msg09"]]]
                                 (mapv (fn [[k v]] [(concat subspace k) v]))))))))
 
+;
+
 (defn wipe-db
   ([] (wipe-db []))
   ([subspace]
@@ -43,12 +50,13 @@
     (doseq [msg msgs]
       (doseq [handler (get handlers topic)]
         (when handler
-
-          (processor/process-message ctx {:topic topic
-                                          :consumer consumer
-                                          :node node
-                                          :msg msg
-                                          :handler handler}))))))
+          (let [[_ _ messageid key] (u/key-without-subspace ctx (first msg))]
+            (processor/process-message ctx {:topic topic
+                                            :consumer consumer
+                                            :node node
+                                            :key key
+                                            :messageid messageid
+                                            :handler handler})))))))
 
 (deftest simple-test
   (testing "System reads all messages and marks the consumer head"
@@ -140,3 +148,45 @@
 
       (is (= "hello" (-> @results (first) :data))))))
 
+(defn add-processing-to-db
+  ([] (add-processing-to-db []))
+  ([subspace]
+   (d/with-transaction {}
+     #(do
+        (d/put-all {:tx %} (->> [[[consumer-processing-key-part topic1 consumer1 "msg01" "001"] [processor-status-available node1 "2024-08-08T14:48:24.000-00:00"]]
+                                 [[consumer-processing-key-part topic1 consumer1 "msg02" "002"] [processor-status-processing node1 "2024-08-08T14:48:24.000-00:00"]]
+                                 [[consumer-processing-key-part topic1 consumer1 "msg03" "001"] [processor-status-available node1 "2024-08-08T14:48:25.000-00:00"]]
+                                 [[consumer-processing-key-part topic1 consumer1 "msg04" "002"] [processor-status-processing node1 "2024-08-08T14:48:25.000-00:00"]]]
+                                (mapv (fn [[k v]] [(concat subspace k) v]))))))))
+
+(deftest test-resubmit-abandoned
+  (testing "Old available messages are resubmitted"
+    (wipe-db)
+    (add-processing-to-db)
+    (let [context {:current-timestamp-function (constantly "2024-08-08T14:48:24.715-00:00")
+                   :get-range-after d/get-range-after
+                   :tx-wrapper d/with-transaction}
+          results (atom [])]
+      (core/resubmit-abandoned context {:topic topic1
+                                        :consumer consumer1
+                                        :node node1}
+                               (fn [_ _ to-resubmit]
+                                 (reset! results to-resubmit)))
+      (is (= [["msg01" "001"]]
+             @results))))
+  (testing "Old available and processing messages are resubmitted"
+    (wipe-db)
+    (add-processing-to-db)
+    (let [context {:current-timestamp-function (constantly "2024-08-08T14:48:24.715-00:00")
+                   :get-range-after d/get-range-after
+                   :resubmit-processing-ms 2000
+                   :put-all d/put-all
+                   :tx-wrapper d/with-transaction}
+          results (atom [])]
+      (core/resubmit-abandoned context {:topic topic1
+                                        :consumer consumer1
+                                        :node node1}
+                               (fn [_ _ to-resubmit]
+                                 (reset! results to-resubmit)))
+      (is (= [["msg01" "001"] ["msg02" "002"]]
+             @results)))))

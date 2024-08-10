@@ -26,11 +26,13 @@
     (doseq [msg msgs]
       (doseq [handler (get handlers topic)]
         (when handler
-          (processor/process-message ctx {:topic topic
-                                          :consumer consumer
-                                          :node node
-                                          :msg msg
-                                          :handler handler}))))))
+          (let [[_ _ messageid key] (first msg)]
+            (processor/process-message ctx {:topic topic
+                                            :consumer consumer
+                                            :node node
+                                            :key key
+                                            :messageid messageid
+                                            :handler handler})))))))
 
 (deftest simple-test
   (testing "System reads all messages and marks the consumer head"
