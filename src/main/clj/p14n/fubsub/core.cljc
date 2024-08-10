@@ -135,7 +135,7 @@
 
 (defn start-consumer [{:keys [handlers consumer-name ;Mandatory
                               consumer-poll-ms node fetch-size cluster-file
-                              error-log info-log subspace]
+                              error-log info-log subspace handler-context]
                        :or {fetch-size 10
                             node (str (UUID/randomUUID))
                             consumer-poll-ms 10000}}]
@@ -156,7 +156,8 @@
                  :compare-and-clear d/compare-and-clear
                  :tx-wrapper d/with-transaction
                  :id-formatter d/versionstamp->id-string
-                 :subspace subspace}
+                 :subspace subspace
+                 :handler-context handler-context}
         shutdowns (doall (->> (keys handlers)
                               (map (fn [topic]
                                      (start-topic-consumer context (u/quickmap consumer-name topic node consumer-running? error-log info-log))))))]

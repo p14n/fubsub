@@ -24,7 +24,7 @@
   (compare-and-clear ctx [[consumer-processing-key-part topic consumer messageid key] [processor-status-processing node timestamp]]))
 
 (defn process-message
-  [{:keys [get-value current-timestamp-function
+  [{:keys [get-value current-timestamp-function handler-context
            tx-wrapper info-log error-log id-formatter] :as ctx}
    {:keys [topic consumer node messageid key handler]}]
   (loop [remaining-attempts 50]
@@ -57,7 +57,8 @@
                                [msg time type datacontenttype source] (get-value ctx-tx [topic-key-part topic messageid key])]
                            (handler (-> ctx-tx
                                         (assoc :info-log minfo-log)
-                                        (assoc :error-log merror-log))
+                                        (assoc :error-log merror-log)
+                                        (merge handler-context))
                                     (-> {:subject key
                                          :id human-readable-id
                                          :data msg}
