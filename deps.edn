@@ -2,5 +2,8 @@
 
  :aliases {:test {:extra-paths ["test"]}
            :kaocha {:extra-paths ["test"]
-                    :main-opts ["-m" "kaocha.runner"]
-                    :extra-deps {lambdaisland/kaocha {:mvn/version "1.87.1366"}}}}}
+                    :main-opts ["-m" "kaocha.runner" "--focus" ":unit"]
+                    :extra-deps {lambdaisland/kaocha {:mvn/version "1.87.1366"}}}
+           :kaocha-fdb {:extra-paths ["test"]
+                        :main-opts ["-m" "kaocha.runner" "--focus" ":fdb"]
+                        :extra-deps {lambdaisland/kaocha {:mvn/version "1.87.1366"}}}}}

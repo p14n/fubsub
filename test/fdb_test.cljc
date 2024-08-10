@@ -45,7 +45,7 @@
                                           :msg msg
                                           :handler handler}))))))
 
-(deftest simple-test
+(deftest ^:foundation simple-test
   (testing "System reads all messages and marks the consumer head"
     (wipe-db)
     (add-messages-to-db)
@@ -75,7 +75,7 @@
              (d/with-transaction {}
                #(d/get-value {:tx %} [consumer-head-key-part topic1 consumer1])))))))
 
-(deftest send-receive-message
+(deftest ^:foundation send-receive-message
   (testing "Produce a message and read it back"
     (wipe-db)
     (producer/put-message topic1 "hello" "Dean")
