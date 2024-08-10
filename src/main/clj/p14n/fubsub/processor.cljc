@@ -4,7 +4,6 @@
                                         processor-status-processing]]
             [p14n.fubsub.util :as u :refer [assoc-if]]))
 
-
 (defn check-for-key-in-flight
   [{:keys [get-range-before] :as ctx}
    {:keys [topic consumer messageid key]}]

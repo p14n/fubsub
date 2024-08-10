@@ -81,7 +81,6 @@
              (d/with-transaction {}
                #(d/get-value {:tx %} [consumer-head-key-part topic1 consumer1])))))))
 
-
 (deftest simple-test-with-subspace
   (testing "System reads all messages and marks the consumer head"
     (wipe-db ["the" "subspace"])

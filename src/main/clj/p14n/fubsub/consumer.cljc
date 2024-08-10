@@ -12,7 +12,7 @@
   (let [[_ _ msg-id] (->> msgs last first (drop (count subspace)))]
     [[consumer-head-key-part topic consumer] [msg-id]]))
 
-(defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function subspace]}
+(defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function]}
                                            {:keys [topic consumer node msgs]}]
   (mapv (fn [[[_ _ msg-id key] _]]
           [[consumer-processing-key-part topic consumer msg-id key] [processor-status-available node (current-timestamp-function)]])
