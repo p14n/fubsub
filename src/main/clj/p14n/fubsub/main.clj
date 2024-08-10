@@ -8,7 +8,8 @@
 
 (def minimal-config {:handlers {"mytopic" [minimal-consumer]
                                 "yourtopic" [minimal-consumer]}
-                     :consumer-name "myconsumer"})
+                     :consumer-name "myconsumer"
+                     :subspace ["fubsub" "test"]})
 
 (defn wait []
   (while (not (.isShutdown ccy/executor))

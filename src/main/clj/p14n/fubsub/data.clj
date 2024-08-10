@@ -10,15 +10,21 @@
   ([cluster-file] (.open fdb cluster-file))
   ([] (.open fdb)))
 
-(defn- ->tuple [ks]
-  (Tuple/from (into-array Object ks)))
+(defn- ->tuple
+  ([ks]
+   (->tuple ks nil))
+  ([ks subspace]
+   (Tuple/from (into-array Object (concat subspace ks)))))
 
-(defn- pack-tuple [ks]
-  (.pack (->tuple ks)))
+(defn- pack-tuple
+  ([v]
+   (pack-tuple v nil))
+  ([ks subspace]
+   (.pack (->tuple ks subspace))))
 
-(defn -set! [tr key-values]
+(defn -set! [tr key-values subspace]
   (run! (fn [[ks v]]
-          (let [key (pack-tuple ks)
+          (let [key (pack-tuple ks subspace)
                 value (pack-tuple v)]
             (.set tr key value)))
         key-values))
@@ -50,9 +56,8 @@
       (byte-array)
       (bytes)))
 
-(defn -get [tr keys]
-  (->> keys
-       (pack-tuple)
+(defn -get [tr keys subspace]
+  (->> (pack-tuple keys subspace)
        (.get tr)
        (.join)))
 
@@ -63,14 +68,13 @@
   (.asList (.getRange tr begin end limit)))
 
 (defn -clear
-  ([tr keys]
-   (->> keys
-        (pack-tuple)
+  ([tr keys subspace]
+   (->> (pack-tuple keys subspace)
         (.clear tr))))
 
 (defn -clear-key-starts-with
-  ([tr keys]
-   (let [packed (pack-tuple keys)
+  ([tr keys subspace]
+   (let [packed (pack-tuple keys subspace)
          begin-packed (append-bytes-to-packed-tuple packed [0x02 0x00])
          end-packed (append-bytes-to-packed-tuple packed [0xFF 0x00])]
      (.clear tr begin-packed end-packed))))
@@ -95,35 +99,35 @@
      (with-open [db (open-db)]
        (transact! db f)))))
 
-(defn get-value [{:keys [tx db]} keys]
+(defn get-value [{:keys [tx db subspace]} keys]
   (println "get-value" keys)
   (some-> (if tx
-            (-get tx keys)
-            (transact! db #(-get % keys)))
+            (-get tx keys subspace)
+            (transact! db #(-get % keys subspace)))
           (Tuple/fromBytes)
           (.getItems)))
 
-(defn put-all [{:keys [tx db]} kvs]
+(defn put-all [{:keys [tx db subspace]} kvs]
   (println "put-all" kvs)
   (if tx
-    (-set! tx kvs)
-    (transact! db #(-set! % kvs))))
+    (-set! tx kvs subspace)
+    (transact! db #(-set! % kvs subspace))))
 
-(defn compare-and-clear [{:keys [tx db]} [k v]]
+(defn compare-and-clear [{:keys [tx db subspace]} [k v]]
   (println "compare-and-clear" k v)
   (if tx
-    (-mutate! tx MutationType/COMPARE_AND_CLEAR (pack-tuple k) (pack-tuple v))
-    (transact! db #(-mutate! tx MutationType/COMPARE_AND_CLEAR (pack-tuple k) (pack-tuple v)))))
+    (-mutate! tx MutationType/COMPARE_AND_CLEAR (pack-tuple k subspace) (pack-tuple v))
+    (transact! db #(-mutate! tx MutationType/COMPARE_AND_CLEAR (pack-tuple k subspace) (pack-tuple v)))))
 
-(defn set-with-version-key [{:keys [tx db]} [k v]]
+(defn set-with-version-key [{:keys [tx db subspace]} [k v]]
   (if tx
-    (-mutate! tx MutationType/SET_VERSIONSTAMPED_KEY (.packWithVersionstamp (->tuple k)) (pack-tuple v))
-    (transact! db #(-mutate! tx MutationType/SET_VERSIONSTAMPED_KEY (.packWithVersionstamp (->tuple k)) (pack-tuple v)))))
+    (-mutate! tx MutationType/SET_VERSIONSTAMPED_KEY (.packWithVersionstamp (->tuple k subspace)) (pack-tuple v))
+    (transact! db #(-mutate! tx MutationType/SET_VERSIONSTAMPED_KEY (.packWithVersionstamp (->tuple k subspace)) (pack-tuple v)))))
 
-(defn set-with-version-value [{:keys [tx db]} [k v]]
+(defn set-with-version-value [{:keys [tx db subspace]} [k v]]
   (if tx
-    (-mutate! tx MutationType/SET_VERSIONSTAMPED_VALUE (pack-tuple k) (.packWithVersionstamp (->tuple v)))
-    (transact! db #(-mutate! tx MutationType/SET_VERSIONSTAMPED_VALUE (pack-tuple k) (.packWithVersionstamp (->tuple v))))))
+    (-mutate! tx MutationType/SET_VERSIONSTAMPED_VALUE (pack-tuple k subspace) (.packWithVersionstamp (->tuple v)))
+    (transact! db #(-mutate! tx MutationType/SET_VERSIONSTAMPED_VALUE (pack-tuple k subspace) (.packWithVersionstamp (->tuple v))))))
 
 ;; (defn delete-all [{:keys [tx db]} ks]
 ;;   (if tx
@@ -141,28 +145,29 @@
           vt (Tuple/fromBytes (.getValue kv))]
       [(tuple->vector kt) (tuple->vector vt)])))
 
-(defn get-range-after [{:keys [tx db]} begin limit]
-  (let [begin-packed (pack-tuple begin)
+(defn get-range-after [{:keys [tx db subspace]} begin limit]
+  (let [begin-packed (pack-tuple begin subspace)
         end-packed (-> begin
                        (drop-last)
-                       (pack-tuple)
+                       (pack-tuple subspace)
                        (append-bytes-to-packed-tuple [0xFF 0x00]))
         results (some->> (if tx
                            (-range tx begin-packed end-packed limit)
                            (transact! db #(-range % begin-packed end-packed limit)))
                          (.get)
                          (map key-value->vector))
+        ;key-length (+ (count subspace) (count begin))
         key-length (count begin)
-        first-key-match (= begin (take key-length (ffirst results)))]
+        first-key-match (= begin (take key-length (drop (count subspace) (ffirst results))))]
     (if first-key-match
       (rest results)
       results)))
 
-(defn get-range-before [{:keys [tx db]} end]
-  (let [end-packed (pack-tuple end)
+(defn get-range-before [{:keys [tx db subspace]} end]
+  (let [end-packed (pack-tuple end subspace)
         begin-packed (-> end
                          (drop-last)
-                         (pack-tuple)
+                         (pack-tuple subspace)
                          (append-bytes-to-packed-tuple [0x02 0x00]))]
     (some->> (if tx
                (-range tx begin-packed end-packed ReadTransaction/ROW_LIMIT_UNLIMITED)
@@ -170,8 +175,8 @@
              (.get)
              (map key-value->vector))))
 
-(defn set-watch [{:keys [tx db]} keys callback]
+(defn set-watch [{:keys [tx db subspace]} keys callback]
   (-> (if tx
-        (.watch tx (pack-tuple keys))
-        (transact! db #(.watch % (pack-tuple keys))))
+        (.watch tx (pack-tuple keys subspace))
+        (transact! db #(.watch % (pack-tuple keys subspace))))
       (.thenRun callback)))

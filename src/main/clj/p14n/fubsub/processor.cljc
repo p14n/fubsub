@@ -4,6 +4,7 @@
                                         processor-status-processing]]
             [p14n.fubsub.util :as u :refer [assoc-if]]))
 
+
 (defn check-for-key-in-flight
   [{:keys [get-range-before] :as ctx}
    {:keys [topic consumer messageid key]}]
@@ -25,10 +26,11 @@
 
 (defn process-message
   [{:keys [get-value current-timestamp-function
-           tx-wrapper info-log error-log id-formatter] :as ctx}
+           tx-wrapper info-log error-log id-formatter subspace] :as ctx}
    {:keys [topic consumer node msg handler]}]
   (loop [remaining-attempts 50]
-    (let [[[_ _ messageid key] _] msg
+    (let [msg-key (if subspace (drop (count subspace) (first msg)) (first msg))
+          [_ _ messageid key] msg-key
           human-readable-id (id-formatter messageid)
           processing-timestamp (current-timestamp-function)
           minfo-log #(info-log (str "msg:" human-readable-id " " %))

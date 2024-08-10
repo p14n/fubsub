@@ -1,10 +1,10 @@
 #kaocha/v1
  {:tests                       [{:type :kaocha.type/clojure.test
-                                 :id   :fdb
+                                 :id   :unit
                                  :ns-patterns   ["-test$"]
                                  :source-paths  ["src/main/clj"]
-                                 :test-paths    ["src/test/fdb" "src/test/unit"]}]
-  :fail-fast?                  false
+                                 :test-paths    ["src/test/unit"]}]
+  :fail-fast?                  true
   :color?                      true
   :reporter                    [kaocha.report/dots]
   :plugins                     [:kaocha.plugin/randomize

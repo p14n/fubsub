@@ -37,7 +37,7 @@ jobs:
           restore-keys: cljdeps-
 
       - name: Test
-        run: clojure -Mkaocha --no-capture-output
+        run: clojure -Mkaocha-ci --no-capture-output
         
       - name: Clj-kondo
         run: clj-kondo --lint src:test

@@ -15,12 +15,14 @@
     (.toString sw)))
 
 (defn- notify-processors-async
-  [{:keys [handlers error-log info-log] :as ctx}
+  [{:keys [handlers error-log info-log subspace] :as ctx}
    {:keys [topic consumer node msgs]}]
   (doseq [msg msgs]
     (doseq [handler (get handlers topic)]
       (when handler
-        (let [[[_ _ _ key] _] msg
+        (let [msg-key (if subspace (drop (count subspace) (first msg)) (first msg))
+              [_ _ _ key] msg-key
+              _ (println "notify-processors-async" msg-key)
               lock-key (str topic "/" consumer "/" key)]
           (ccy/run-async
            #(do
@@ -67,7 +69,7 @@
 
 (defn start-consumer [{:keys [handlers consumer-name ;Mandatory
                               consumer-poll-ms node fetch-size cluster-file
-                              error-log info-log]
+                              error-log info-log subspace]
                        :or {fetch-size 10
                             node (str (UUID/randomUUID))
                             consumer-poll-ms 10000}}]
@@ -87,7 +89,8 @@
                  :put-all d/put-all
                  :compare-and-clear d/compare-and-clear
                  :tx-wrapper d/with-transaction
-                 :id-formatter d/versionstamp->id-string}
+                 :id-formatter d/versionstamp->id-string
+                 :subspace subspace}
         shutdowns (doall (->> (keys handlers)
                               (map (fn [topic]
                                      (start-topic-consumer context (u/quickmap consumer-name topic node consumer-running? error-log info-log))))))]

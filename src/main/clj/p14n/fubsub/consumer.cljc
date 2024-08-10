@@ -7,11 +7,12 @@
             [p14n.fubsub.util :as u])
   (:import [java.lang Exception]))
 
-(defn ordered-msgs->consumer-head-tx [topic consumer msgs]
-  (let [[_ _ msg-id] (-> msgs last first)]
+(defn ordered-msgs->consumer-head-tx [{:keys [subspace]}
+                                      topic consumer msgs]
+  (let [[_ _ msg-id] (->> msgs last first (drop (count subspace)))]
     [[consumer-head-key-part topic consumer] [msg-id]]))
 
-(defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function]}
+(defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function subspace]}
                                            {:keys [topic consumer node msgs]}]
   (mapv (fn [[[_ _ msg-id key] _]]
           [[consumer-processing-key-part topic consumer msg-id key] [processor-status-available node (current-timestamp-function)]])
@@ -25,7 +26,7 @@
 
 (defn select-new-messages-tx
   [ctx {:keys [topic consumer msgs] :as data}]
-  (concat [(ordered-msgs->consumer-head-tx topic consumer msgs)]
+  (concat [(ordered-msgs->consumer-head-tx ctx topic consumer msgs)]
           (topic-msgs->consumer-processing-txs ctx data)))
 
 (defn topic-check

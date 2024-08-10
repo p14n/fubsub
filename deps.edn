@@ -1,9 +1,8 @@
 {:deps {org.foundationdb/fdb-java {:mvn/version "7.1.42"}}
-
- :aliases {:test {:extra-paths ["test"]}
-           :kaocha {:extra-paths ["test/unit"]
-                    :main-opts ["-m" "kaocha.runner" "--focus" ":unit"]
-                    :extra-deps {lambdaisland/kaocha {:mvn/version "1.87.1366"}}}
-           :kaocha-fdb {:extra-paths ["test/fdb"]
-                        :main-opts ["-m" "kaocha.runner" "--focus" ":fdb"]
-                        :extra-deps {lambdaisland/kaocha {:mvn/version "1.87.1366"}}}}}
+ :paths ["src/main/clj"]
+ :aliases {:kaocha-ci {:extra-paths ["src/test/unit"]
+                       :main-opts ["-m" "kaocha.runner" "--config-file" "tests-ci.edn" "--focus" ":unit"]
+                       :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}
+           :kaocha {:extra-paths ["src/test/fdb"]
+                    :main-opts ["-m" "kaocha.runner" "--focus" ":fdb"]
+                    :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}}}

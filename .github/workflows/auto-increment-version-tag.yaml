@@ -1,0 +1,19 @@
+name: Auto-incrementing version tag
+on:
+  workflow_run:
+    workflows: [Test and lint]
+    types:
+      - completed
+jobs:
+  create-new-version-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - run: |
+          OLD_VERSION_TAG=`git tag --sort=committerdate | tail -n 1`
+          NEW_VERSION_TAG=$((OLD_VERSION_TAG+1))
+          echo "Pushing tag to increment old version $OLD_VERSION_TAG to new version $NEW_VERSION_TAG"
+          git tag $NEW_VERSION_TAG
+          git push origin $NEW_VERSION_TAG
