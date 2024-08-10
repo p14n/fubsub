@@ -97,5 +97,5 @@
                 (catch Exception _)))
          (ccy/shutdown-executor)
          (.close db))))
-  
-     
+
+

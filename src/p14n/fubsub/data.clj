@@ -50,7 +50,6 @@
       (byte-array)
       (bytes)))
 
-
 (defn -get [tr keys]
   (->> keys
        (pack-tuple)
@@ -129,7 +128,6 @@
     (-mutate! tx MutationType/SET_VERSIONSTAMPED_VALUE (pack-tuple k) (.packWithVersionstamp (->tuple v)))
     (transact! db #(-mutate! tx MutationType/SET_VERSIONSTAMPED_VALUE (pack-tuple k) (.packWithVersionstamp (->tuple v))))))
 
-
 ;; (defn delete-all [{:keys [tx db]} ks]
 ;;   (if tx
 ;;     (-clear tx ks)
@@ -145,8 +143,6 @@
     (let [kt (Tuple/fromBytes (.getKey kv))
           vt (Tuple/fromBytes (.getValue kv))]
       [(tuple->vector kt) (tuple->vector vt)])))
-
-
 
 (defn get-range-after [{:keys [tx db]} begin limit]
   (let [begin-packed (pack-tuple begin)
@@ -164,7 +160,6 @@
     (if first-key-match
       (rest results)
       results)))
-
 
 (defn get-range-before [{:keys [tx db]} end]
   (let [end-packed (pack-tuple end)

@@ -32,7 +32,6 @@
                                           :msg msg
                                           :handler handler}))))))
 
-
 (deftest simple-test
   (testing "System reads all messages and marks the consumer head"
     (reset-db)
@@ -60,4 +59,3 @@
       (is (= [[consumer-head-key-part topic1 consumer1] ["msg09"]]
              (first @tu/db))))))
 
-    
