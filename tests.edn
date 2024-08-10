@@ -1,16 +1,14 @@
 #kaocha/v1
  {:tests                       [{:type :kaocha.type/clojure.test
                                  :id   :unit
-                                 :skip-meta [:foundation]
                                  :ns-patterns   ["-test$"]
                                  :source-paths  ["src"]
-                                 :test-paths    ["test"]}
+                                 :test-paths    ["test/unit"]}
                                 {:type :kaocha.type/clojure.test
                                  :id   :fdb
-                                 :focus-meta [:foundation]
                                  :ns-patterns   ["-test$"]
                                  :source-paths  ["src"]
-                                 :test-paths    ["test"]}]
+                                 :test-paths    ["test/fdb"]}]
   :fail-fast?                  false
   :color?                      true
   :reporter                    [kaocha.report/dots]
