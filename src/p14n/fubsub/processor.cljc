@@ -3,7 +3,7 @@
                                         topic-key-part
                                         processor-status-processing]]
             [p14n.fubsub.data :as d]
-            [p14n.fubsub.util :refer [assoc-if]]))
+            [p14n.fubsub.util :as u :refer [assoc-if]]))
 
 (defn check-for-key-in-flight
   [{:keys [get-range-before] :as ctx}
@@ -26,16 +26,16 @@
 
 (defn process-message
   [{:keys [get-value current-timestamp-function
-           tx-wrapper info-log error-log] :as ctx}
+           tx-wrapper info-log error-log id-formatter] :as ctx}
    {:keys [topic consumer node msg handler]}]
   (loop [remaining-attempts 50]
     (let [[[_ _ messageid key] _] msg
-          human-readable-id (d/versionstamp->id-string messageid)
+          human-readable-id (id-formatter messageid)
           processing-timestamp (current-timestamp-function)
           minfo-log #(info-log (str "msg:" human-readable-id " " %))
           merror-log #(error-log (concat [(str "msg:" human-readable-id " " %)] %&))
           in-flight (tx-wrapper ctx
-                                #(let [ctx-tx (merge (d/ctx-with-tx ctx %)
+                                #(let [ctx-tx (merge (u/ctx-with-tx ctx %)
                                                      {:info-log minfo-log
                                                       :error-log merror-log})
                                        in-flight (check-for-key-in-flight ctx-tx
@@ -55,7 +55,7 @@
       (if (not (seq in-flight))
         (do (minfo-log "Starting processing")
             (tx-wrapper ctx
-                        #(let [ctx-tx (d/ctx-with-tx ctx %)
+                        #(let [ctx-tx (u/ctx-with-tx ctx %)
                                [msg time type datacontenttype source] (get-value ctx-tx [topic-key-part topic messageid key])]
                            (handler (-> ctx-tx
                                         (assoc :info-log minfo-log)

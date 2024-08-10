@@ -64,7 +64,8 @@
                    :get-range-before d/get-range-before
                    :put-all d/put-all
                    :compare-and-clear d/compare-and-clear
-                   :tx-wrapper d/with-transaction}]
+                   :tx-wrapper d/with-transaction
+                   :id-formatter d/versionstamp->id-string}]
       (consumer/topic-check context {:topic topic1
                                      :consumer consumer1
                                      :node "node1"})
@@ -94,7 +95,8 @@
                    :get-range-before d/get-range-before
                    :put-all d/put-all
                    :compare-and-clear d/compare-and-clear
-                   :tx-wrapper d/with-transaction}]
+                   :tx-wrapper d/with-transaction
+                   :id-formatter d/versionstamp->id-string}]
       (consumer/topic-check context {:topic topic1
                                      :consumer consumer1
                                      :node "node1"})

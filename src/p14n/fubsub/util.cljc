@@ -17,3 +17,6 @@
   [& args]
   (let [p (cons 'list (map (juxt (comp keyword name) identity) args))]
     `(into {} ~p)))
+
+(defn ctx-with-tx [ctx tx]
+  (assoc ctx :tx tx))

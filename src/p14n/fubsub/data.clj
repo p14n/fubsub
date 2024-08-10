@@ -95,9 +95,6 @@
      (with-open [db (open-db)]
        (transact! db f)))))
 
-(defn ctx-with-tx [ctx tx]
-  (assoc ctx :tx tx))
-
 (defn get-value [{:keys [tx db]} keys]
   (println "get-value" keys)
   (some-> (if tx

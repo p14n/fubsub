@@ -50,7 +50,8 @@
                    :get-range-before tu/get-range-before
                    :put-all tu/put-all
                    :compare-and-clear tu/compare-and-clear
-                   :tx-wrapper (fn [_ f] (f nil))}]
+                   :tx-wrapper (fn [_ f] (f nil))
+                   :id-formatter str}]
       (consumer/topic-check context {:topic topic1
                                      :consumer consumer1
                                      :node "node1"})

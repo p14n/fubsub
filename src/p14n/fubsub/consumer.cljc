@@ -4,7 +4,8 @@
                                         topic-key-part
                                         processor-status-available]]
             [p14n.fubsub.data :as d]
-            [p14n.fubsub.concurrency :as ccy])
+            [p14n.fubsub.concurrency :as ccy]
+            [p14n.fubsub.util :as u])
   (:import [java.lang Exception]))
 
 (defn ordered-msgs->consumer-head-tx [topic consumer msgs]
@@ -37,7 +38,7 @@
   [{:keys [put-all notify-processors tx-wrapper threads] :as ctx}
    {:keys [topic consumer node]}]
   (let [msgs (tx-wrapper ctx
-                         #(let [ctx-tx (d/ctx-with-tx ctx %)
+                         #(let [ctx-tx (u/ctx-with-tx ctx %)
                                 msgs (select-new-messages ctx-tx
                                                           {:topic topic
                                                            :consumer consumer
