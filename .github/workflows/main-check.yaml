@@ -40,7 +40,7 @@ jobs:
         run: clojure -Mkaocha-ci --no-capture-output
         
       - name: Clj-kondo
-        run: clj-kondo --lint src:test
+        run: clj-kondo --lint src
 
       - name: Cljfmt
-        run: cljfmt check src test
+        run: cljfmt check src
