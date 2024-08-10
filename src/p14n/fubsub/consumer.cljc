@@ -3,7 +3,6 @@
                                         consumer-processing-key-part
                                         topic-key-part
                                         processor-status-available]]
-            [p14n.fubsub.data :as d]
             [p14n.fubsub.concurrency :as ccy]
             [p14n.fubsub.util :as u])
   (:import [java.lang Exception]))

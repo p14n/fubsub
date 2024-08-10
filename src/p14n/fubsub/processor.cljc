@@ -2,7 +2,6 @@
   (:require [p14n.fubsub.common :refer [consumer-processing-key-part
                                         topic-key-part
                                         processor-status-processing]]
-            [p14n.fubsub.data :as d]
             [p14n.fubsub.util :as u :refer [assoc-if]]))
 
 (defn check-for-key-in-flight
