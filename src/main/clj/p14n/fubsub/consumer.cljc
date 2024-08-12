@@ -4,7 +4,8 @@
                                         topic-key-part
                                         processor-status-available]]
             [p14n.fubsub.concurrency :as ccy]
-            [p14n.fubsub.util :as u])
+            [p14n.fubsub.util :as u]
+            [p14n.fubsub.logging :as log])
   (:import [java.lang Exception]))
 
 (defn ordered-msgs->consumer-head-tx [ctx topic consumer msgs]
@@ -55,23 +56,23 @@
                               :msgs msgs}))
     (if (<  (count msgs) threads) true false)))
 
-(defn consumer-loop [{:keys [consumer-poll-ms error-log
-                             consumer-running? watch-semaphore info-log]}
+(defn consumer-loop [{:keys [consumer-poll-ms logger
+                             consumer-running? watch-semaphore]}
                      topic-check-function
                      set-watch-function]
   (while (.get consumer-running?)
-    (info-log "Waiting for messages")
+    (log/info logger :consumer/consumer-loop "Waiting for messages")
     (ccy/acquire-semaphore watch-semaphore consumer-poll-ms)
     (loop []
       (when (.get consumer-running?)
-        (info-log "Fetching messages")
+        (log/info logger :consumer/consumer-loop "Fetching messages")
         (let [complete (try (topic-check-function)
                             (catch Exception e
-                              (error-log "Failed to check topic" e)
+                              (log/error logger :consumer/consumer-loop "Failed to check topic" e)
                               true))]
           (if complete
             (try (set-watch-function)
-                 (catch Exception e (error-log "Failed to set watch" e)))
+                 (catch Exception e (log/error logger :consumer/consumer-loop "Failed to set watch" e)))
             (recur)))))))
 
 

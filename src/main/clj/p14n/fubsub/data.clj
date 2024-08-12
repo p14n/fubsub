@@ -1,6 +1,7 @@
 (ns p14n.fubsub.data
   (:require [clojure.string :as cs]
-            [p14n.fubsub.util :as u])
+            [p14n.fubsub.util :as u]
+            [p14n.fubsub.logging :as log])
   (:import [com.apple.foundationdb FDB ReadTransaction MutationType]
            [com.apple.foundationdb.tuple Tuple Versionstamp]
            [java.util.function Function]))
@@ -100,22 +101,23 @@
      (with-open [db (open-db)]
        (transact! db f)))))
 
-(defn get-value [{:keys [tx db subspace]} keys]
-  (println "get-value" keys)
+(defn get-value [{:keys [tx db subspace logger]} keys]
+  (log/debug logger :data/get-value keys)
   (some-> (if tx
             (-get tx keys subspace)
             (transact! db #(-get % keys subspace)))
           (Tuple/fromBytes)
           (.getItems)))
 
-(defn put-all [{:keys [tx db subspace]} kvs]
-  (println "put-all" kvs)
+(defn put-all [{:keys [tx db subspace logger]} kvs]
+  (log/debug logger :data/put-all kvs)
   (if tx
     (-set! tx kvs subspace)
     (transact! db #(-set! % kvs subspace))))
 
-(defn compare-and-clear [{:keys [tx db subspace]} [k v]]
-  (println "compare-and-clear" k v)
+(defn compare-and-clear [{:keys [tx db subspace logger]} [k v]]
+  (log/debug logger :data/compare-and-clear [k v])
+
   (if tx
     (-mutate! tx MutationType/COMPARE_AND_CLEAR (pack-tuple k subspace) (pack-tuple v))
     (transact! db #(-mutate! tx MutationType/COMPARE_AND_CLEAR (pack-tuple k subspace) (pack-tuple v)))))

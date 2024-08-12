@@ -1,10 +1,11 @@
 (ns p14n.fubsub.main
   (:require [p14n.fubsub.core :as c]
-            [p14n.fubsub.concurrency :as ccy]))
+            [p14n.fubsub.concurrency :as ccy]
+            [p14n.fubsub.logging :as log]))
 
 (defn minimal-consumer
-  [{:keys [topic]} msg]
-  (println topic "received" msg))
+  [{:keys [logger]} msg]
+  (log/info logger :main/minimal-consumer msg))
 
 (def minimal-config {:handlers {"mytopic" [minimal-consumer]
                                 "yourtopic" [minimal-consumer]}

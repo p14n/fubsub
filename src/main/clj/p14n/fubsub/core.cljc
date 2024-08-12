@@ -6,7 +6,8 @@
                                                    processor-status-processing]]
             [p14n.fubsub.data :as d]
             [p14n.fubsub.util :as u]
-            [p14n.fubsub.concurrency :as ccy])
+            [p14n.fubsub.concurrency :as ccy]
+            [p14n.fubsub.logging :as log])
   (:import [java.util UUID]
            [java.lang Exception]
            [java.io StringWriter PrintWriter]
@@ -18,15 +19,15 @@
     (.printStackTrace e (PrintWriter. sw))
     (.toString sw)))
 
-(defn lock-and-process-message [{:keys [info-log error-log] :as ctx}
+(defn lock-and-process-message [{:keys [logger] :as ctx}
                                 {:keys [topic consumer] :as data}]
   (let [lock-key (str topic "/" consumer "/" key)]
-    (info-log (str "Running process" lock-key))
+    (log/info logger :core/lock-and-process-message (str "Running process" lock-key))
     (ccy/acquire-lock lock-key)
-    (info-log (str "Acquired lock " lock-key))
+    (log/info logger :core/lock-and-process-message (str "Acquired lock " lock-key))
     (try
       (processor/process-message ctx data)
-      (catch Exception e (error-log "Error in processor" e))
+      (catch Exception e (log/error logger :core/lock-and-process-message  "Error in processor" e))
       (finally (ccy/release-lock lock-key)))))
 
 (defn now-minus-ms [ms]
@@ -82,10 +83,10 @@
                                            :handler handler})))))))
 
 (defn run-resubmit-thread
-  [{:keys [consumer-running? error-log info-log resubmit-available-ms] :as context}
+  [{:keys [consumer-running? logger resubmit-available-ms] :as context}
    {:keys [topic consumer node] :as data}]
   (while (.get consumer-running?)
-    (info-log "Running resubmit thread")
+    (log/info logger :core/run-resubmit "Running resubmit thread")
     (try (resubmit-abandoned context data
                              (fn [{:keys [handlers]} _ to-resubmit]
                                (doseq [[msgid key] to-resubmit]
@@ -98,19 +99,17 @@
                                                      :key key
                                                      :messageid msgid
                                                      :handler handler})))))))
-         (catch Exception e (error-log "Error in resubmit" e)))
+         (catch Exception e (log/error logger :core/run-resubmit "Error in resubmit" e)))
     (Thread/sleep (or resubmit-available-ms 2000))))
 
-(defn start-topic-consumer [context {:keys [consumer-name topic node consumer-running? error-log info-log]}]
+(defn start-topic-consumer [{:keys [logger] :as context}
+                            {:keys [consumer-name topic node consumer-running?]}]
   (let [watch-semaphore (ccy/semaphore 1)
         watch-active? (ccy/atomic-boolean false)
-        ierror-log (or error-log #(let [[msg ex] %&]
-                                    (if ex
-                                      (println (u/current-timestamp-string) consumer-name topic "ERROR" msg (stacktrace->string ex))
-                                      (println (u/current-timestamp-string) consumer-name topic "ERROR" msg))))
-        iinfo-log (or info-log #(println (u/current-timestamp-string) consumer-name topic "INFO" %))
-        ctx (merge context {:error-log ierror-log
-                            :info-log iinfo-log}
+        ctx (merge context {:logger (log/map* #(-> %
+                                                   (assoc :topic topic)
+                                                   (assoc :consumer consumer-name)
+                                                   (assoc :node node)) logger)}
                    (u/quickmap consumer-running? watch-semaphore))]
     (ccy/run-async
      (fn []
@@ -119,11 +118,11 @@
                                                            :consumer consumer-name
                                                            :node node})
                                #(do (when (not (.get watch-active?))
-                                      (iinfo-log "Setting watch")
+                                      (log/info logger :core/start-topic-consumer "Setting watch")
                                       (.set watch-active? true)
                                       (d/set-watch ctx [topic-head-key-part topic]
                                                    (fn []
-                                                     (iinfo-log "Watch fired")
+                                                     (log/info logger :core/start-topic-consumer "Watch fired")
                                                      (.set watch-active? false)
                                                      (.drainPermits watch-semaphore)
                                                      (.release watch-semaphore))))))))
@@ -135,7 +134,7 @@
 
 (defn start-consumer [{:keys [handlers consumer-name ;Mandatory
                               consumer-poll-ms node fetch-size cluster-file
-                              error-log info-log subspace handler-context]
+                              subspace handler-context logger]
                        :or {fetch-size 10
                             node (str (UUID/randomUUID))
                             consumer-poll-ms 10000}}]
@@ -157,10 +156,11 @@
                  :tx-wrapper d/with-transaction
                  :id-formatter d/versionstamp->id-string
                  :subspace subspace
-                 :handler-context handler-context}
+                 :handler-context handler-context
+                 :logger (log/->StdoutLogger)}
         shutdowns (doall (->> (keys handlers)
                               (map (fn [topic]
-                                     (start-topic-consumer context (u/quickmap consumer-name topic node consumer-running? error-log info-log))))))]
+                                     (start-topic-consumer context (u/quickmap consumer-name topic node consumer-running? logger))))))]
 
     #(do (.set consumer-running? false)
          (doseq [shutdown-function shutdowns]

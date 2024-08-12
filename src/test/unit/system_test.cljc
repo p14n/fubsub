@@ -4,7 +4,8 @@
             [p14n.fubsub.common :as common :refer [consumer-head-key-part
                                                    topic-key-part]]
             [clojure.test :refer [deftest is testing]]
-            [test-util :as tu]))
+            [test-util :as tu]
+            [p14n.fubsub.logging :as log]))
 
 (def topic1 "topic1")
 (def consumer1 "consumer1")
@@ -38,15 +39,14 @@
   (testing "System reads all messages and marks the consumer head"
     (reset-db)
     (let [results (atom [])
-          handlers {topic1 [(fn [_ msg]
-                              (println "Received" topic1 msg)
+          handlers {topic1 [(fn [{:keys [logger]} msg]
+                              (log/info logger :system-test/simple-test msg)
                               (swap! results conj msg))]}
           context {:threads 10
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple
                    :handlers handlers
-                   :error-log println
-                   :info-log println
+                   :logger (log/->StdoutLogger)
                    :get-range-after tu/get-range-after
                    :get-value tu/get-value
                    :get-range-before tu/get-range-before

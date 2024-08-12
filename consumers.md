@@ -80,3 +80,14 @@ Processor key ring
 ;(topic, consumer) = messageid
 ;processor
 ;(topic,consumer,messageid,key) = (status,timestamp,nodeid)
+
+
+#pseudo-async
+change run-async
+- under test, simply adds the block to a collection to be run later
+- distinguish between run-async and run-continuously (provide the function to chekc when to run again)
+- non-test, creates a virtual thread
+Move while (.get consumer-running?) out of the function and create run-continuously
+- under test, simply adds the block to a collection to be run later
+
+
