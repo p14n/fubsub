@@ -2,7 +2,8 @@
   (:import [java.util.concurrent.locks ReentrantLock]
            [java.util.concurrent ConcurrentHashMap Semaphore TimeUnit Executors]
            [java.util.concurrent.atomic AtomicBoolean]
-           [java.util.function BiFunction]))
+           [java.util.function BiFunction]
+           [java.lang Thread]))
 
 (defonce executor (Executors/newVirtualThreadPerTaskExecutor))
 
@@ -71,13 +72,17 @@
     active))
 
 (defn acquire-semaphore [s ms]
-  (.tryAcquire s ms TimeUnit/MILLISECONDS))
+  (.tryAcquire s ms TimeUnit/MILLISECONDS)
+  true)
 
 (defn semaphore [n] (Semaphore. n))
 (defn atomic-boolean [state] (AtomicBoolean. state))
 
 (defn run-async [f]
   (.submit executor f))
+
+(defn run-async-while [pred sleep-ms-between-runs f]
+  (.submit executor #(while (pred) (f) (Thread/sleep sleep-ms-between-runs))))
 
 (defn shutdown-executor []
   (.shutdown executor))

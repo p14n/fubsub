@@ -60,9 +60,8 @@
                              consumer-running? watch-semaphore]}
                      topic-check-function
                      set-watch-function]
-  (while (.get consumer-running?)
-    (log/info logger :consumer/consumer-loop "Waiting for messages")
-    (ccy/acquire-semaphore watch-semaphore consumer-poll-ms)
+  (log/info logger :consumer/consumer-loop "Waiting for messages")
+  (when (ccy/acquire-semaphore watch-semaphore consumer-poll-ms)
     (loop []
       (when (.get consumer-running?)
         (log/info logger :consumer/consumer-loop "Fetching messages")

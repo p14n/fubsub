@@ -83,26 +83,24 @@
                                            :handler handler})))))))
 
 (defn run-resubmit-thread
-  [{:keys [consumer-running? logger resubmit-available-ms] :as context}
+  [{:keys [logger] :as context}
    {:keys [topic consumer node] :as data}]
-  (while (.get consumer-running?)
-    (log/info logger :core/run-resubmit "Running resubmit thread")
-    (try (resubmit-abandoned context data
-                             (fn [{:keys [handlers]} _ to-resubmit]
-                               (doseq [[msgid key] to-resubmit]
-                                 (doseq [handler (get handlers topic)]
-                                   (ccy/run-async
-                                    (fn [] (lock-and-process-message
-                                            context {:topic topic
-                                                     :consumer consumer
-                                                     :node node
-                                                     :key key
-                                                     :messageid msgid
-                                                     :handler handler})))))))
-         (catch Exception e (log/error logger :core/run-resubmit "Error in resubmit" e)))
-    (Thread/sleep (or resubmit-available-ms 2000))))
+  (log/info logger :core/run-resubmit "Running resubmit thread")
+  (try (resubmit-abandoned context data
+                           (fn [{:keys [handlers]} _ to-resubmit]
+                             (doseq [[msgid key] to-resubmit]
+                               (doseq [handler (get handlers topic)]
+                                 (ccy/run-async
+                                  (fn [] (lock-and-process-message
+                                          context {:topic topic
+                                                   :consumer consumer
+                                                   :node node
+                                                   :key key
+                                                   :messageid msgid
+                                                   :handler handler})))))))
+       (catch Exception e (log/error logger :core/run-resubmit "Error in resubmit" e))))
 
-(defn start-topic-consumer [{:keys [logger] :as context}
+(defn start-topic-consumer [{:keys [logger resubmit-available-ms] :as context}
                             {:keys [consumer-name topic node consumer-running?]}]
   (let [watch-semaphore (ccy/semaphore 1)
         watch-active? (ccy/atomic-boolean false)
@@ -110,25 +108,29 @@
                                                    (assoc :topic topic)
                                                    (assoc :consumer consumer-name)
                                                    (assoc :node node)) logger)}
-                   (u/quickmap consumer-running? watch-semaphore))]
-    (ccy/run-async
-     (fn []
-       (consumer/consumer-loop ctx
-                               #(consumer/topic-check ctx {:topic topic
-                                                           :consumer consumer-name
-                                                           :node node})
-                               #(do (when (not (.get watch-active?))
-                                      (log/info logger :core/start-topic-consumer "Setting watch")
-                                      (.set watch-active? true)
-                                      (d/set-watch ctx [topic-head-key-part topic]
-                                                   (fn []
-                                                     (log/info logger :core/start-topic-consumer "Watch fired")
-                                                     (.set watch-active? false)
-                                                     (.drainPermits watch-semaphore)
-                                                     (.release watch-semaphore))))))))
-    (ccy/run-async #(run-resubmit-thread ctx {:topic topic
-                                              :consumer consumer-name
-                                              :node node}))
+                   (u/quickmap consumer-running? watch-semaphore))
+        topic-check-function #(consumer/topic-check ctx {:topic topic
+                                                         :consumer consumer-name
+                                                         :node node})
+        set-watch-function #(do (when (not (.get watch-active?))
+                                  (log/info logger :core/start-topic-consumer "Setting watch")
+                                  (.set watch-active? true)
+                                  (d/set-watch ctx [topic-head-key-part topic]
+                                               (fn []
+                                                 (log/info logger :core/start-topic-consumer "Watch fired")
+                                                 (.set watch-active? false)
+                                                 (.drainPermits watch-semaphore)
+                                                 (.release watch-semaphore)))))]
+    (ccy/run-async-while #(.get consumer-running?) 0
+                         (fn []
+                           (consumer/consumer-loop ctx
+                                                   topic-check-function
+                                                   set-watch-function)))
+    (ccy/run-async-while #(.get consumer-running?)
+                         (or resubmit-available-ms 2000)
+                         #(run-resubmit-thread ctx {:topic topic
+                                                    :consumer consumer-name
+                                                    :node node}))
     #(do (.drain watch-semaphore)
          (.release watch-semaphore))))
 
