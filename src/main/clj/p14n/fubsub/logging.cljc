@@ -19,7 +19,6 @@
       (.toString sw))
     ""))
 
-
 (defn assoc-if
   [m k v]
   (if v (assoc m k v)
@@ -35,29 +34,24 @@
       (assoc merged-msg :stacktrace (stacktrace exception))
       merged-msg)))
 
-
 (defn log-msg-or-description
   [logger service level msg exception]
   (log logger (make-log-msg-or-description service level msg exception)))
-
 
 (defn debug
   [logger service msg]
   (log-msg-or-description logger service :debug msg nil)
   logger)
 
-
 (defn info
   [logger service msg]
   (log-msg-or-description logger service :info msg nil)
   logger)
 
-
 (defn warn
   [logger service msg]
   (log-msg-or-description logger service :warn msg nil)
   logger)
-
 
 (defn error
   ([logger service msg] (error logger service msg nil))
@@ -66,7 +60,6 @@
 (defrecord TestLogger [logs]
   Logger
   (log [_ msg] (swap! logs conj msg)))
-
 
 (defrecord StdoutLogger []
   Logger

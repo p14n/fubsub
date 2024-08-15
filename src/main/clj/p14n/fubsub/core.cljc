@@ -7,18 +7,10 @@
             [p14n.fubsub.data :as d]
             [p14n.fubsub.util :as u]
             [p14n.fubsub.concurrency :as ccy]
-            [p14n.fubsub.logging :as log]
-            [p14n.fubsub.processor :as proc])
+            [p14n.fubsub.logging :as log])
   (:import [java.util UUID]
            [java.lang Exception]
-           [java.io StringWriter PrintWriter]
-           [java.time LocalDateTime ZoneOffset]
-           [java.lang Thread]))
-
-(defn- stacktrace->string [e]
-  (let [sw (StringWriter.)]
-    (.printStackTrace e (PrintWriter. sw))
-    (.toString sw)))
+           [java.time LocalDateTime ZoneOffset]))
 
 (defn lock-and-process-message [{:keys [logger] :as ctx}
                                 {:keys [topic consumer key] :as data}]

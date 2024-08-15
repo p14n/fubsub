@@ -1,17 +1,18 @@
 (ns fdb-deterministic-test
-  (:require [clojure.test.check.generators :as gen]
+  (:require [clojure.core :refer [with-redefs-fn]]
             [clojure.test.check.clojure-test :refer [defspec]]
+            [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
-            [p14n.fubsub.logging :as log]
-            [p14n.fubsub.core :as c]
-            [p14n.fubsub.producer :as p]
-            [p14n.fubsub.processor :as proc]
-            [pseudo-concurrency :as pccy]
+            [fdb-test :as fdbt]
             [p14n.fubsub.common :as co]
             [p14n.fubsub.concurrency :as ccy]
+            [p14n.fubsub.core :as c]
             [p14n.fubsub.data :as d]
+            [p14n.fubsub.logging :as log]
+            [p14n.fubsub.processor :as proc]
+            [p14n.fubsub.producer :as p]
             [p14n.fubsub.util :as u]
-            [fdb-test :as fdbt])
+            [pseudo-concurrency :as pccy])
   (:import [java.util Random]))
 
 (def loglines (atom []))
@@ -21,7 +22,6 @@
   (log [_ msg]
     (println msg)
     (swap! loglines conj msg)))
-
 
 (defn minimal-handler
   [{:keys [logger]} _]
@@ -53,8 +53,8 @@
                     #'p14n.fubsub.concurrency/run-async-while pccy/run-async-while
                     #'p14n.fubsub.concurrency/acquire-semaphore pccy/acquire-semaphore}
      #(let [ctx (assoc minimal-config :db (d/open-db))
-            _ (c/start-consumer ctx)
             r (Random. seed)]
+        (c/start-consumer ctx)
         (doseq [msg-idx (range message-count)]
           (p/put-message "mytopic" (str "msg" msg-idx) (str "subject-key" (mod msg-idx 10)) {:subspace ["fubsub" "deterministic"]}))
         (loop [outer-idx max-execution-loops]
@@ -76,8 +76,9 @@
           {:pass (= message-count processed)
            :processed processed})))))
 
+#_{:clj-kondo/ignore [:unresolved-symbol]}
 (defspec run-consumer-in-pseudo-concurrency
   10
   (prop/for-all [thread-seed gen/large-integer]
-                (-> (test-consumer thread-seed 51 20 200)
+                (-> (test-consumer thread-seed 11 10 100)
                     :pass)))

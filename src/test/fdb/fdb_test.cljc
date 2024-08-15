@@ -171,7 +171,8 @@
     (add-processing-to-db)
     (let [context {:current-timestamp-function (constantly "2024-08-08T14:48:24.715-00:00")
                    :get-range-after d/get-range-after
-                   :tx-wrapper d/with-transaction}
+                   :tx-wrapper d/with-transaction
+                   :logger (log/->StdoutLogger)}
           results (atom [])]
       (core/resubmit-abandoned context {:topic topic1
                                         :consumer consumer1
