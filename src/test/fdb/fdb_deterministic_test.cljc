@@ -61,9 +61,9 @@
           (doseq [_ (range executions-per-loop)]
             (let [[pred f] (pccy/shuffle-and-pop-first-thread-function r)]
               (when (pred)
-                ;(println ">>>>>>>>>>>>>>>>>>>>>>>>>>> Executing" f)
                 (f))))
-          (when (and (< 0 outer-idx) (not (check-for-completion ctx)))
+          (if (or (>= 0 outer-idx) (check-for-completion ctx))
+            (println "Completed with" (* executions-per-loop outer-idx) " thread executions")
             (recur (dec outer-idx))))
         (let [processed (->> @loglines
                              (map :body)

@@ -48,10 +48,6 @@
                                                 :consumer consumer})
         available (->> msgs
                        (filter (fn [[_ [status _ timestamp]]]
-                                 (log/info logger :core/find-resubmitable {:msg-timestamp timestamp
-                                                                           :old-available-time old-available-time
-                                                                           :status status
-                                                                           :timestamp-ready (first-timestamp-is-earliest timestamp old-available-time)})
                                  (and (= status processor-status-available)
                                       (first-timestamp-is-earliest timestamp old-available-time)))))
         processing (some->> (when old-processing-time msgs)
@@ -60,17 +56,13 @@
                                            (first-timestamp-is-earliest timestamp old-processing-time)))))
         to-resubmit (->> (concat available processing)
                          (map #(->> % first (take-last 2) (vec))))]
-    (log/info logger :core/find-resubmitable (str "!!!!!!!!!!!!!!!!!!1 "  (count msgs) (count available)))
-    (log/info logger :core/find-resubmitable (str "!!!!!!!!!!!!!!!!!!2 "  (count processing)))
-    (log/info logger :core/find-resubmitable (str "!!!!!!!!!!!!!!!!!!3 "  to-resubmit))
     (when (seq processing)
       (put-all ctx (->> processing
                         (map (fn [[k _]] [(u/key-without-subspace ctx k)
                                           [processor-status-available node (current-timestamp-function)]])))))
-    (log/info logger :core/find-resubmitable "!!!!!!!!!!!!!!!!!!<")
-    (log/info logger :core/find-resubmitable to-resubmit)
     (when (seq to-resubmit)
-      (log/info logger :core/find-resubmitable to-resubmit))
+      (log/info logger :core/find-resubmitable {:desc "Resubmitting"
+                                                :to-resubmit to-resubmit}))
     to-resubmit))
 
 (defn resubmit-abandoned
