@@ -148,8 +148,9 @@
           vt (Tuple/fromBytes (.getValue kv))]
       [(tuple->vector kt) (tuple->vector vt)])))
 
-(defn get-range-after [{:keys [tx db subspace] :as ctx} begin limit]
+(defn get-range-after [{:keys [tx db subspace logger] :as ctx} begin limit]
   (let [begin-packed (pack-tuple begin subspace)
+        _ (log/debug logger :data/get-range-after (->tuple begin subspace))
         end-packed (-> begin
                        (drop-last)
                        (pack-tuple subspace)
@@ -161,6 +162,9 @@
                          (map key-value->vector))
         key-length (count begin)
         first-key-match (= begin (take key-length (u/key-without-subspace ctx (ffirst results))))]
+    (log/debug logger :data/get-range-after (if first-key-match
+                                              (rest results)
+                                              results))
     (if first-key-match
       (rest results)
       results)))

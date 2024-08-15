@@ -1,8 +1,12 @@
 {:deps {org.foundationdb/fdb-java {:mvn/version "7.1.42"}}
  :paths ["src/main/clj"]
- :aliases {:kaocha-ci {:extra-paths ["src/test/unit"]
+ :aliases {:test {:extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}
+                               lambdaisland/kaocha {:mvn/version "1.91.1392"}}
+                  :extra-paths ["src/test/fdb" "src/test/unit"]}
+           :kaocha-ci {:extra-paths ["src/test/unit"]
                        :main-opts ["-m" "kaocha.runner" "--config-file" "tests-ci.edn" "--focus" ":unit"]
                        :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}
            :kaocha {:extra-paths ["src/test/fdb"]
-                    :main-opts ["-m" "kaocha.runner" "--focus" ":fdb"]
-                    :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}}}
+                    :main-opts ["-m" "kaocha.runner"]
+                    :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}
+                                 lambdaisland/kaocha {:mvn/version "1.91.1392"}}}}}

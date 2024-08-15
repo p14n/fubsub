@@ -39,13 +39,16 @@
 
 (defn wipe-db
   ([] (wipe-db []))
-  ([subspace]
+  ([subspace] (wipe-db subspace topic1))
+  ([subspace topic]
    (d/with-transaction {}
      #(do
-        (d/-clear-key-starts-with % (concat subspace [topic-head-key-part topic1]) nil)
-        (d/-clear-key-starts-with % (concat subspace [consumer-head-key-part topic1]) nil)
-        (d/-clear-key-starts-with % (concat subspace [topic-key-part topic1]) nil)
-        (d/-clear-key-starts-with % (concat subspace [consumer-processing-key-part topic1]) nil)))))
+        (d/-clear-key-starts-with % (concat subspace [topic-head-key-part topic]) nil)
+        (d/-clear-key-starts-with % (concat subspace [consumer-head-key-part topic]) nil)
+        (d/-clear-key-starts-with % (concat subspace [topic-key-part topic]) nil)
+        (d/-clear-key-starts-with % (concat subspace [consumer-processing-key-part topic]) nil)))))
+
+"fubsub" "deterministic" "cp" "mytopic" "myconsumer"
 
 (def notify-processors-simple
   (fn [{:keys [handlers] :as ctx} {:keys [topic consumer node msgs]}]

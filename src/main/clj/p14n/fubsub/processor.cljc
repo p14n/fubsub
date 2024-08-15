@@ -1,7 +1,8 @@
 (ns p14n.fubsub.processor
   (:require [p14n.fubsub.common :refer [consumer-processing-key-part
                                         topic-key-part
-                                        processor-status-processing]]
+                                        processor-status-processing
+                                        processor-status-available]]
             [p14n.fubsub.util :as u :refer [assoc-if]]
             [p14n.fubsub.logging :as log]))
 
@@ -32,24 +33,29 @@
     (let [human-readable-id (id-formatter messageid)
           processing-timestamp (current-timestamp-function)
           m-logger (log/map* #(assoc % :messageid human-readable-id) logger)
-          in-flight (tx-wrapper ctx
-                                #(let [ctx-tx (merge (u/ctx-with-tx ctx %)
-                                                     {:logger m-logger})
-                                       in-flight (check-for-key-in-flight ctx-tx
-                                                                          {:topic topic
-                                                                           :consumer consumer
-                                                                           :messageid messageid
-                                                                           :key key})]
-                                   (when (not (seq in-flight))
-                                     (mark-as-processing ctx-tx
-                                                         {:topic topic
-                                                          :consumer consumer
-                                                          :messageid messageid
-                                                          :timestamp processing-timestamp
-                                                          :key key
-                                                          :node node}))
-                                   in-flight))]
-      (if (not (seq in-flight))
+          [ready-to-process? in-flight? still-available?] (tx-wrapper ctx
+                                                                      #(let [ctx-tx (merge (u/ctx-with-tx ctx %)
+                                                                                           {:logger m-logger})
+                                                                             in-flight (check-for-key-in-flight ctx-tx
+                                                                                                                {:topic topic
+                                                                                                                 :consumer consumer
+                                                                                                                 :messageid messageid
+                                                                                                                 :key key})
+                                                                             [status] (get-value ctx-tx [consumer-processing-key-part topic consumer messageid key])
+                                                                             in-flight? (seq in-flight)
+                                                                             still-available? (= status processor-status-available)
+                                                                             ready-to-process? (and (not in-flight?)
+                                                                                                    still-available?)]
+                                                                         (when ready-to-process?
+                                                                           (mark-as-processing ctx-tx
+                                                                                               {:topic topic
+                                                                                                :consumer consumer
+                                                                                                :messageid messageid
+                                                                                                :timestamp processing-timestamp
+                                                                                                :key key
+                                                                                                :node node}))
+                                                                         [ready-to-process? in-flight? still-available?]))]
+      (if ready-to-process?
         (do (log/info logger :processor/process-message "Starting processing")
             (tx-wrapper ctx
                         #(let [ctx-tx (u/ctx-with-tx ctx %)
@@ -73,7 +79,9 @@
                                                     :key key}))))
         (if (>= 0 remaining-attempts)
           (log/warn logger :processor/process-message "Previous messages found for key after multiple attempts - stopping handler")
-          (recur (dec remaining-attempts)))))))
+          (if (and in-flight? still-available?)
+            (recur (dec remaining-attempts))
+            (log/warn logger :processor/process-message "Message has been handled - stopping handler")))))))
 
 (defn get-all-processing
   [{:keys [get-range-after] :as ctx}

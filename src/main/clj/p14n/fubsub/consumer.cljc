@@ -12,10 +12,11 @@
   (let [[_ _ msg-id] (->> msgs last first (u/key-without-subspace ctx))]
     [[consumer-head-key-part topic consumer] [msg-id]]))
 
-(defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function]}
+(defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function] :as ctx}
                                            {:keys [topic consumer node msgs]}]
-  (mapv (fn [[[_ _ msg-id key] _]]
-          [[consumer-processing-key-part topic consumer msg-id key] [processor-status-available node (current-timestamp-function)]])
+  (mapv (fn [[msg-keys _]]
+          (let [[_ _ msg-id key] (u/key-without-subspace ctx msg-keys)]
+            [[consumer-processing-key-part topic consumer msg-id key] [processor-status-available node (current-timestamp-function)]]))
         msgs))
 
 (defn select-new-messages
