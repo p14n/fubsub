@@ -41,6 +41,7 @@
            topic-head (d/get-value ctx-tx [co/topic-head-key-part "mytopic"])
            processing (proc/get-all-processing ctx-tx {:topic "mytopic"
                                                        :consumer "myconsumer"})]
+       (println "Check for completion: consumer-head" consumer-head ", topic-head" topic-head "processing" (count processing))
        (and (= (-> consumer-head (vec) (first) (str)) (-> topic-head (vec) (first) (str)))
             (not (seq processing))))))
 
@@ -63,7 +64,7 @@
               (when (pred)
                 (f))))
           (if (or (>= 0 outer-idx) (check-for-completion ctx))
-            (println "Completed with" (* executions-per-loop outer-idx) " thread executions")
+            (println "Completed with" (* executions-per-loop (- max-execution-loops outer-idx)) " thread executions")
             (recur (dec outer-idx))))
         (let [processed (->> @loglines
                              (map :body)

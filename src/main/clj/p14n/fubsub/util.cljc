@@ -27,3 +27,10 @@
 (defn key-without-subspace [{:keys [subspace]} key]
   (drop (count subspace) key))
 
+(defn now-minus-ms [ms]
+  (-> (LocalDateTime/now)
+      (.atOffset ZoneOffset/UTC)
+      (.minusNanos (* 1000000 ms))))
+
+(defn first-timestamp-is-earliest [t1 t2] (println ">???" t1 t2) (> 0 (compare t1 t2)))
+
