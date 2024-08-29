@@ -40,9 +40,10 @@
                  [ready-to-process? in-flight? still-available?])))
 
 
-(defn process-and-remove-mark [{:keys [get-value handler-context tx-wrapper] :as ctx}
+(defn process-and-remove-mark [{:keys [get-value handler-context tx-wrapper logger] :as ctx}
                                {:keys [topic messageid key handler
                                        human-readable-id] :as data}]
+  (log/info logger :processor/process-and-remove-mark "Starting processing")
   (tx-wrapper ctx
               #(let [ctx-tx (u/ctx-with-tx ctx %)
                      [msg time type datacontenttype source] (get-value ctx-tx [topic-key-part topic messageid key])]
@@ -65,19 +66,16 @@
     (let [human-readable-id (id-formatter messageid)
           processing-timestamp (current-timestamp-function)
           m-logger (log/map* #(assoc % :messageid human-readable-id) logger)
-          [ready-to-process? in-flight? still-available?] (check-processable (assoc ctx :logger m-logger)
-                                                                             (assoc data :timestamp processing-timestamp))]
-      (if ready-to-process?
-        (do (log/info logger :processor/process-message "Starting processing")
-            (process-and-remove-mark (assoc ctx :logger m-logger)
-                                     (assoc data
-                                            :timestamp processing-timestamp
-                                            :human-readable-id human-readable-id)))
-
-        (cond
-          (>= 0 remaining-attempts) (log/warn logger :processor/process-message "Previous messages found for key after multiple attempts - stopping handler")
-          (not (and in-flight? still-available?)) (log/warn logger :processor/process-message "Message has been handled - stopping handler")
-          :else (recur (dec remaining-attempts)))))))
+          ctx-new (assoc ctx :logger m-logger)
+          data-new (assoc data
+                          :timestamp processing-timestamp
+                          :human-readable-id human-readable-id)
+          [ready-to-process? in-flight? still-available?] (check-processable ctx-new data-new)]
+      (cond
+        ready-to-process? (process-and-remove-mark ctx-new data-new)
+        (>= 0 remaining-attempts) (log/warn logger :processor/process-message "Previous messages found for key after multiple attempts - stopping handler")
+        (not (and in-flight? still-available?)) (log/warn logger :processor/process-message "Message has been handled - stopping handler")
+        :else (recur (dec remaining-attempts))))))
 
 (defn get-all-processing
   [{:keys [get-range-after] :as ctx}
