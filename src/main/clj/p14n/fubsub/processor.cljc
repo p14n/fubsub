@@ -25,63 +25,59 @@
    {:keys [topic consumer messageid key timestamp node]}]
   (compare-and-clear ctx [[consumer-processing-key-part topic consumer messageid key] [processor-status-processing node timestamp]]))
 
+(defn check-processable [{:keys [get-value tx-wrapper] :as ctx}
+                         {:keys [topic consumer messageid key] :as data}]
+  (tx-wrapper ctx
+              #(let [ctx-tx (merge (u/ctx-with-tx ctx %))
+                     in-flight (check-for-key-in-flight ctx-tx data)
+                     [status] (get-value ctx-tx [consumer-processing-key-part topic consumer messageid key])
+                     in-flight? (seq in-flight)
+                     still-available? (= status processor-status-available)
+                     ready-to-process? (and (not in-flight?)
+                                            still-available?)]
+                 (when ready-to-process?
+                   (mark-as-processing ctx-tx data))
+                 [ready-to-process? in-flight? still-available?])))
+
+
+(defn process-and-remove-mark [{:keys [get-value handler-context tx-wrapper] :as ctx}
+                               {:keys [topic messageid key handler
+                                       human-readable-id] :as data}]
+  (tx-wrapper ctx
+              #(let [ctx-tx (u/ctx-with-tx ctx %)
+                     [msg time type datacontenttype source] (get-value ctx-tx [topic-key-part topic messageid key])]
+                 (handler (-> ctx-tx
+                              (merge handler-context))
+                          (-> {:subject key
+                               :id human-readable-id
+                               :data msg}
+                              (assoc-if :time time)
+                              (assoc-if :type type)
+                              (assoc-if :datacontenttype datacontenttype)
+                              (assoc-if :source source)))
+                 (remove-processing-mark ctx-tx data))))
+
 (defn process-message
-  [{:keys [get-value current-timestamp-function handler-context
-           tx-wrapper logger id-formatter] :as ctx}
-   {:keys [topic consumer node messageid key handler]}]
+  [{:keys [current-timestamp-function
+           logger id-formatter] :as ctx}
+   {:keys [messageid] :as data}]
   (loop [remaining-attempts 50]
     (let [human-readable-id (id-formatter messageid)
           processing-timestamp (current-timestamp-function)
           m-logger (log/map* #(assoc % :messageid human-readable-id) logger)
-          [ready-to-process? in-flight? still-available?] (tx-wrapper ctx
-                                                                      #(let [ctx-tx (merge (u/ctx-with-tx ctx %)
-                                                                                           {:logger m-logger})
-                                                                             in-flight (check-for-key-in-flight ctx-tx
-                                                                                                                {:topic topic
-                                                                                                                 :consumer consumer
-                                                                                                                 :messageid messageid
-                                                                                                                 :key key})
-                                                                             [status] (get-value ctx-tx [consumer-processing-key-part topic consumer messageid key])
-                                                                             in-flight? (seq in-flight)
-                                                                             still-available? (= status processor-status-available)
-                                                                             ready-to-process? (and (not in-flight?)
-                                                                                                    still-available?)]
-                                                                         (when ready-to-process?
-                                                                           (mark-as-processing ctx-tx
-                                                                                               {:topic topic
-                                                                                                :consumer consumer
-                                                                                                :messageid messageid
-                                                                                                :timestamp processing-timestamp
-                                                                                                :key key
-                                                                                                :node node}))
-                                                                         [ready-to-process? in-flight? still-available?]))]
+          [ready-to-process? in-flight? still-available?] (check-processable (assoc ctx :logger m-logger)
+                                                                             (assoc data :timestamp processing-timestamp))]
       (if ready-to-process?
         (do (log/info logger :processor/process-message "Starting processing")
-            (tx-wrapper ctx
-                        #(let [ctx-tx (u/ctx-with-tx ctx %)
-                               [msg time type datacontenttype source] (get-value ctx-tx [topic-key-part topic messageid key])]
-                           (handler (-> ctx-tx
-                                        (assoc :logger m-logger)
-                                        (merge handler-context))
-                                    (-> {:subject key
-                                         :id human-readable-id
-                                         :data msg}
-                                        (assoc-if :time time)
-                                        (assoc-if :type type)
-                                        (assoc-if :datacontenttype datacontenttype)
-                                        (assoc-if :source source)))
-                           (remove-processing-mark ctx-tx
-                                                   {:topic topic
-                                                    :node node
-                                                    :timestamp processing-timestamp
-                                                    :consumer consumer
-                                                    :messageid messageid
-                                                    :key key}))))
-        (if (>= 0 remaining-attempts)
-          (log/warn logger :processor/process-message "Previous messages found for key after multiple attempts - stopping handler")
-          (if (and in-flight? still-available?)
-            (recur (dec remaining-attempts))
-            (log/warn logger :processor/process-message "Message has been handled - stopping handler")))))))
+            (process-and-remove-mark (assoc ctx :logger m-logger)
+                                     (assoc data
+                                            :timestamp processing-timestamp
+                                            :human-readable-id human-readable-id)))
+
+        (cond
+          (>= 0 remaining-attempts) (log/warn logger :processor/process-message "Previous messages found for key after multiple attempts - stopping handler")
+          (not (and in-flight? still-available?)) (log/warn logger :processor/process-message "Message has been handled - stopping handler")
+          :else (recur (dec remaining-attempts)))))))
 
 (defn get-all-processing
   [{:keys [get-range-after] :as ctx}

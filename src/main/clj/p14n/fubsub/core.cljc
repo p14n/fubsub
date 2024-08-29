@@ -9,8 +9,7 @@
             [p14n.fubsub.concurrency :as ccy]
             [p14n.fubsub.logging :as log])
   (:import [java.util UUID]
-           [java.lang Exception]
-           [java.time LocalDateTime ZoneOffset]))
+           [java.lang Exception]))
 
 (defn lock-and-process-message [{:keys [logger] :as ctx}
                                 {:keys [topic consumer key] :as data}]
@@ -158,13 +157,13 @@
                  :logger (or logger (log/->StdoutLogger))}
         shutdowns (doall (->> (keys handlers)
                               (map (fn [topic]
-                                     (start-topic-consumer context (u/quickmap consumer-name topic node consumer-running?))))))]
-
-    #(do (.set consumer-running? false)
-         (doseq [shutdown-function shutdowns]
-           (try (shutdown-function)
-                (catch Exception _)))
-         (ccy/shutdown-executor)
-         (.close database))))
+                                     (start-topic-consumer context (u/quickmap consumer-name topic node consumer-running?))))))
+        shutdown-fn #(do (.set consumer-running? false)
+                         (doseq [shutdown-function shutdowns]
+                           (try (shutdown-function)
+                                (catch Exception _)))
+                         (ccy/shutdown-executor)
+                         (when db (.close database)))]
+    shutdown-fn))
 
 

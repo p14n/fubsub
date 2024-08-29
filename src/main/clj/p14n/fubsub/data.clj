@@ -132,11 +132,6 @@
     (-mutate! tx MutationType/SET_VERSIONSTAMPED_VALUE (pack-tuple k subspace) (.packWithVersionstamp (->tuple v)))
     (transact! db #(-mutate! tx MutationType/SET_VERSIONSTAMPED_VALUE (pack-tuple k subspace) (.packWithVersionstamp (->tuple v))))))
 
-;; (defn delete-all [{:keys [tx db]} ks]
-;;   (if tx
-;;     (-clear tx ks)
-;;     (transact! db #(-clear % ks))))
-
 (defn tuple->vector [tuple]
   (some->> tuple
            (.getItems)
