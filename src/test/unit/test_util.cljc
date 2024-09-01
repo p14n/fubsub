@@ -18,7 +18,8 @@
 (defn <key-range [key m]
   (let [last-key (last key)
         idx (dec (count key))
-        kvs (key-range (drop-last key) m)]
+        kvs (key-range (drop-last key) m)
+        _ (println last-key idx kvs)]
     (->> kvs
          (take-while #(> 0 (compare (nth (first %) idx) last-key)))
          (vec))))

@@ -12,12 +12,18 @@
   (let [[_ _ msg-id] (->> msgs last first (u/key-without-subspace ctx))]
     [[consumer-head-key-part topic consumer] [msg-id]]))
 
-(defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function] :as ctx}
+(defn p> [x] (println x) x)
+
+(defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function handlers] :as ctx}
                                            {:keys [topic consumer node msgs]}]
-  (mapv (fn [[msg-keys _]]
-          (let [[_ _ msg-id key] (u/key-without-subspace ctx msg-keys)]
-            [[consumer-processing-key-part topic consumer msg-id key] [processor-status-available node (current-timestamp-function)]]))
-        msgs))
+  (let [handler-names (->> (get handlers topic) (map u/get-handler-name))]
+    (->> msgs
+         (mapv (fn [[msg-keys _]]
+                 (let [[_ _ msg-id key] (u/key-without-subspace ctx msg-keys)]
+                   (mapv #(do [[consumer-processing-key-part topic consumer msg-id key %]
+                               [processor-status-available node (current-timestamp-function)]])
+                         handler-names))))
+         (apply concat))))
 
 (defn select-new-messages
   [{:keys [get-range-after threads get-value] :as ctx}

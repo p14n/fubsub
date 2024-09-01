@@ -33,7 +33,8 @@
                                             :node node
                                             :key key
                                             :messageid messageid
-                                            :handler handler})))))))
+                                            :handler handler
+                                            :handler-name "hondler"})))))))
 
 (deftest simple-test
   (testing "System reads all messages and marks the consumer head"

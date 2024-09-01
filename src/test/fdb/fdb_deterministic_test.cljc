@@ -34,6 +34,9 @@
                      :fetch-size 10
                      :resubmit-available-ms 10})
 
+(def two-handlers-cfg (assoc minimal-config :handlers {"mytopic" [minimal-handler
+                                                                  minimal-handler]}))
+
 (defn check-for-completion [ctx]
   (d/with-transaction ctx
     #(let [ctx-tx (assoc (u/ctx-with-tx ctx %) :get-range-after d/get-range-after)
@@ -46,14 +49,14 @@
             (not (seq processing))))))
 
 (defn test-consumer
-  ([seed message-count executions-per-loop max-execution-loops]
+  ([seed cfg message-count expected-processed executions-per-loop max-execution-loops]
    (reset! loglines [])
    (pccy/reset-threads)
    (fdbt/wipe-db ["fubsub" "deterministic"] "mytopic")
    (with-redefs-fn {#'p14n.fubsub.concurrency/run-async pccy/run-async
                     #'p14n.fubsub.concurrency/run-async-while pccy/run-async-while
                     #'p14n.fubsub.concurrency/acquire-semaphore pccy/acquire-semaphore}
-     #(let [ctx (assoc minimal-config :db (d/open-db))
+     #(let [ctx (assoc cfg :db (d/open-db))
             r (Random. seed)]
         (c/start-consumer ctx)
         (doseq [msg-idx (range message-count)]
@@ -74,12 +77,19 @@
                              :handler/processed
                              (count))
               _ (println "Processed" processed "messages")]
-          {:pass (= message-count processed)
+          {:pass (= expected-processed processed)
            :processed processed})))))
 
 #_{:clj-kondo/ignore [:unresolved-symbol]}
 (defspec run-consumer-in-pseudo-concurrency
   10
   (prop/for-all [thread-seed gen/large-integer]
-                (-> (test-consumer thread-seed 11 10 100)
+                (-> (test-consumer thread-seed minimal-config 11 11 10 100)
+                    :pass)))
+
+#_{:clj-kondo/ignore [:unresolved-symbol]}
+(defspec run-two-handlers-in-pseudo-concurrency
+  10
+  (prop/for-all [thread-seed gen/large-integer]
+                (-> (test-consumer thread-seed two-handlers-cfg 11 22 10 100)
                     :pass)))

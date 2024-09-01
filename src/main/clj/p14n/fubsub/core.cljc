@@ -58,6 +58,7 @@
     (when (seq to-resubmit)
       (resubmit-function ctx data to-resubmit))))
 
+
 (defn- notify-processors-async
   [{:keys [handlers] :as ctx}
    {:keys [topic consumer node msgs]}]
@@ -72,7 +73,8 @@
                                            :node node
                                            :key key
                                            :messageid messageid
-                                           :handler handler})))))))
+                                           :handler handler
+                                           :handler-name (u/get-handler-name handler)})))))))
 
 (defn run-resubmit-thread
   [{:keys [logger] :as context}

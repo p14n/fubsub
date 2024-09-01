@@ -34,3 +34,7 @@
 
 (defn first-timestamp-is-earliest [t1 t2] (println ">???" t1 t2) (> 0 (compare t1 t2)))
 
+(defn get-handler-name [h]
+  "hondler")
+
+
