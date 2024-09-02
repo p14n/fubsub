@@ -16,7 +16,7 @@
 
 (defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function handlers] :as ctx}
                                            {:keys [topic consumer node msgs]}]
-  (let [handler-names (->> (get handlers topic) (map u/get-handler-name))]
+  (let [handler-names (keys (u/handlers-by-name handlers topic))]
     (->> msgs
          (mapv (fn [[msg-keys _]]
                  (let [[_ _ msg-id key] (u/key-without-subspace ctx msg-keys)]

@@ -6,8 +6,6 @@
             [p14n.fubsub.util :as u :refer [assoc-if]]
             [p14n.fubsub.logging :as log]))
 
-(defn pr> [x] (println x) x)
-
 (defn key-from-processing-record [[[_ _ _ _ k] _]] k)
 (defn msg-id-from-processing-record [[[_ _ _ m] _]] m)
 
@@ -15,7 +13,6 @@
   [{:keys [get-range-before] :as ctx}
    {:keys [topic consumer messageid key]}]
   (->> (get-range-before ctx [consumer-processing-key-part topic consumer messageid])
-       (pr>)
        (filter #(= key (key-from-processing-record %)))
        (map msg-id-from-processing-record)))
 

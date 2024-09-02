@@ -160,10 +160,10 @@
    (d/with-transaction {}
      #(do
         (d/put-all {:tx % :logger (log/->StdoutLogger)}
-                   (->> [[[consumer-processing-key-part topic1 consumer1 "msg01" "001"] [processor-status-available node1 "2024-08-08T14:48:24.000-00:00"]]
-                         [[consumer-processing-key-part topic1 consumer1 "msg02" "002"] [processor-status-processing node1 "2024-08-08T14:48:24.000-00:00"]]
-                         [[consumer-processing-key-part topic1 consumer1 "msg03" "001"] [processor-status-available node1 "2024-08-08T14:48:25.000-00:00"]]
-                         [[consumer-processing-key-part topic1 consumer1 "msg04" "002"] [processor-status-processing node1 "2024-08-08T14:48:25.000-00:00"]]]
+                   (->> [[[consumer-processing-key-part topic1 consumer1 "msg01" "001" "hondler"] [processor-status-available node1 "2024-08-08T14:48:24.000-00:00"]]
+                         [[consumer-processing-key-part topic1 consumer1 "msg02" "002" "hondler"] [processor-status-processing node1 "2024-08-08T14:48:24.000-00:00"]]
+                         [[consumer-processing-key-part topic1 consumer1 "msg03" "001" "hondler"] [processor-status-available node1 "2024-08-08T14:48:25.000-00:00"]]
+                         [[consumer-processing-key-part topic1 consumer1 "msg04" "002" "hondler"] [processor-status-processing node1 "2024-08-08T14:48:25.000-00:00"]]]
                         (mapv (fn [[k v]] [(concat subspace k) v]))))))))
 
 (deftest test-resubmit-abandoned
@@ -180,7 +180,7 @@
                                         :node node1}
                                (fn [_ _ to-resubmit]
                                  (reset! results to-resubmit)))
-      (is (= [["msg01" "001"]]
+      (is (= [["msg01" "001" "hondler"]]
              @results))))
   (testing "Old available and processing messages are resubmitted"
     (wipe-db)
@@ -197,5 +197,5 @@
                                         :node node1}
                                (fn [_ _ to-resubmit]
                                  (reset! results to-resubmit)))
-      (is (= [["msg01" "001"] ["msg02" "002"]]
+      (is (= [["msg01" "001" "hondler"] ["msg02" "002" "hondler"]]
              @results)))))

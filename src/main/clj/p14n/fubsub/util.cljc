@@ -37,4 +37,8 @@
 (defn get-handler-name [h]
   "hondler")
 
-
+(defn handlers-by-name
+  ([handler-map topic]
+   (handlers-by-name (get handler-map topic)))
+  ([handlers]
+   (->> handlers (map #(do [(get-handler-name %) %])) (into {}))))

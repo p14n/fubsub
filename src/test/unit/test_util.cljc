@@ -1,4 +1,5 @@
-(ns test-util)
+(ns test-util
+  (:require [clojure.string :as string]))
 
 (defn key-range [key m]
   (let [c (count key)]
@@ -9,7 +10,9 @@
 (defn >key-range
   [key m limit]
   (let [last-key (last key) idx (dec (count key))
-        kvs (key-range (drop-last key) m)]
+        kvs (key-range (drop-last key) m)
+        ;_ (println ">>>" last-key idx kvs)
+        ]
     (->> kvs
          (drop-while #(>= 0 (compare (nth (first %) idx) last-key)))
          (take limit)
@@ -19,7 +22,8 @@
   (let [last-key (last key)
         idx (dec (count key))
         kvs (key-range (drop-last key) m)
-        _ (println last-key idx kvs)]
+        ;_ (println "<<<" last-key idx kvs)
+        ]
     (->> kvs
          (take-while #(> 0 (compare (nth (first %) idx) last-key)))
          (vec))))
@@ -27,6 +31,7 @@
 (def db (atom {}))
 
 (defn get-value [_ keys]
+  ;(println @db keys (->> keys (map type) (map str) (clojure.string/join " ")))
   (get @db keys))
 
 (defn get-range-after [_ keys limit]

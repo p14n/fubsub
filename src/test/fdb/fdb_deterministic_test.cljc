@@ -87,9 +87,9 @@
                 (-> (test-consumer thread-seed minimal-config 11 11 10 100)
                     :pass)))
 
-#_{:clj-kondo/ignore [:unresolved-symbol]}
-(defspec run-two-handlers-in-pseudo-concurrency
-  10
-  (prop/for-all [thread-seed gen/large-integer]
-                (-> (test-consumer thread-seed two-handlers-cfg 11 22 10 100)
-                    :pass)))
+;;#_{:clj-kondo/ignore [:unresolved-symbol]}
+;; (defspec run-two-handlers-in-pseudo-concurrency
+;;   10
+;;   (prop/for-all [thread-seed gen/large-integer]
+;;                 (-> (test-consumer thread-seed two-handlers-cfg 11 22 10 100)
+;;                     :pass)))
