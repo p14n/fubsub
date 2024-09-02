@@ -1,4 +1,5 @@
 (ns p14n.fubsub.util
+  (:require [clojure.string :refer [split]])
   (:import [java.time.format DateTimeFormatter]
            [java.time LocalDateTime ZoneOffset]))
 
@@ -35,7 +36,8 @@
 (defn first-timestamp-is-earliest [t1 t2] (println ">???" t1 t2) (> 0 (compare t1 t2)))
 
 (defn get-handler-name [h]
-  "hondler")
+  (or (-> h meta :handler-name)
+      (-> h str (split #"@") first)))
 
 (defn handlers-by-name
   ([handler-map topic]

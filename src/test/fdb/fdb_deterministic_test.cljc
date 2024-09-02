@@ -27,6 +27,10 @@
   [{:keys [logger]} _]
   (log/info logger :main/minimal-consumer {:event :handler/processed}))
 
+(defn minimal-handler-2
+  [{:keys [logger]} _]
+  (log/info logger :main/minimal-consumer {:event :handler/processed}))
+
 (def minimal-config {:handlers {"mytopic" [minimal-handler]}
                      :consumer-name "myconsumer"
                      :logger (->TestLogger)
@@ -35,7 +39,7 @@
                      :resubmit-available-ms 10})
 
 (def two-handlers-cfg (assoc minimal-config :handlers {"mytopic" [minimal-handler
-                                                                  minimal-handler]}))
+                                                                  minimal-handler-2]}))
 
 (defn check-for-completion [ctx]
   (d/with-transaction ctx
@@ -87,9 +91,9 @@
                 (-> (test-consumer thread-seed minimal-config 11 11 10 100)
                     :pass)))
 
-;;#_{:clj-kondo/ignore [:unresolved-symbol]}
-;; (defspec run-two-handlers-in-pseudo-concurrency
-;;   10
-;;   (prop/for-all [thread-seed gen/large-integer]
-;;                 (-> (test-consumer thread-seed two-handlers-cfg 11 22 10 100)
-;;                     :pass)))
+#_{:clj-kondo/ignore [:unresolved-symbol]}
+(defspec run-two-handlers-in-pseudo-concurrency
+  10
+  (prop/for-all [thread-seed gen/large-integer]
+                (-> (test-consumer thread-seed two-handlers-cfg 11 22 10 100)
+                    :pass)))

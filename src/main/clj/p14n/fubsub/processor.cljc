@@ -18,8 +18,8 @@
 
 (defn mark-as-processing
   [{:keys [put-all] :as ctx}
-   {:keys [topic consumer messageid key node timestamp]}]
-  (put-all ctx [[[consumer-processing-key-part topic consumer messageid key "hondler"] [processor-status-processing node timestamp]]]))
+   {:keys [topic consumer messageid key node timestamp handler-name]}]
+  (put-all ctx [[[consumer-processing-key-part topic consumer messageid key handler-name] [processor-status-processing node timestamp]]]))
 
 (defn remove-processing-mark
   [{:keys [compare-and-clear] :as ctx}

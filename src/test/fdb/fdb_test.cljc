@@ -62,16 +62,19 @@
                                             :key key
                                             :messageid messageid
                                             :handler handler
-                                            :handler-name "hondler"})))))))
+                                            :handler-name "simple"})))))))
+
+
 
 (deftest simple-test
   (testing "System reads all messages and marks the consumer head"
     (wipe-db)
     (add-messages-to-db)
     (let [results (atom [])
-          handlers {topic1 [(fn [{:keys [logger]} msg]
-                              (log/info logger :fdb-test/simple-test msg)
-                              (swap! results conj msg))]}
+          handlers {topic1 [(with-meta (fn [{:keys [logger]} msg]
+                                         (log/info logger :fdb-test/simple-test msg)
+                                         (swap! results conj msg))
+                              {:handler-name "simple"})]}
           context {:threads 10
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple
@@ -100,9 +103,10 @@
     (wipe-db ["the" "subspace"])
     (add-messages-to-db ["the" "subspace"])
     (let [results (atom [])
-          handlers {topic1 [(fn [{:keys [logger]} msg]
-                              (log/info logger :fdb-test/simple-test-with-subspace msg)
-                              (swap! results conj msg))]}
+          handlers {topic1 [(with-meta (fn [{:keys [logger]} msg]
+                                         (log/info logger :fdb-test/simple-test-with-subspace msg)
+                                         (swap! results conj msg))
+                              {:handler-name "simple"})]}
           context {:threads 10
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple
@@ -133,9 +137,10 @@
     (wipe-db)
     (producer/put-message topic1 "hello" "Dean")
     (let [results (atom [])
-          handlers {topic1 [(fn [{:keys [logger]} msg]
-                              (log/info logger :fdb-test/send-receive-message msg)
-                              (swap! results conj msg))]}
+          handlers {topic1 [(with-meta (fn [{:keys [logger]} msg]
+                                         (log/info logger :fdb-test/send-receive-message msg)
+                                         (swap! results conj msg))
+                              {:handler-name "simple"})]}
           context {:threads 10
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple

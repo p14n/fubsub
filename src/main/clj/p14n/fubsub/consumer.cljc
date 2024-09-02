@@ -12,8 +12,6 @@
   (let [[_ _ msg-id] (->> msgs last first (u/key-without-subspace ctx))]
     [[consumer-head-key-part topic consumer] [msg-id]]))
 
-(defn p> [x] (println x) x)
-
 (defn topic-msgs->consumer-processing-txs [{:keys [current-timestamp-function handlers] :as ctx}
                                            {:keys [topic consumer node msgs]}]
   (let [handler-names (keys (u/handlers-by-name handlers topic))]

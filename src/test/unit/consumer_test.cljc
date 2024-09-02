@@ -57,7 +57,7 @@
               [[consumer-processing-key-part topic1 consumer1 "msg08" "002" "hondler"] [processor-status-available node1 "2024-08-08T14:48:26.715-00:00"]]
               [[consumer-processing-key-part topic1 consumer1 "msg09" "003" "hondler"] [processor-status-available node1 "2024-08-08T14:48:26.715-00:00"]]]
              (consumer/select-new-messages-tx {:current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
-                                               :handlers {topic1 [(fn [_ _])]}}
+                                               :handlers {topic1 [(with-meta (fn [_ _]) {:handler-name "hondler"})]}}
                                               {:topic topic1
                                                :consumer consumer1
                                                :node node1
