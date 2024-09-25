@@ -1,5 +1,4 @@
-(ns test-util
-  (:require [clojure.string :as string]))
+(ns test-util)
 
 (defn key-range [key m]
   (let [c (count key)]
