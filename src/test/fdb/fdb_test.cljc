@@ -61,16 +61,18 @@
                                             :node node
                                             :key key
                                             :messageid messageid
-                                            :handler handler})))))))
+                                            :handler handler
+                                            :handler-name "simple"})))))))
 
 (deftest simple-test
   (testing "System reads all messages and marks the consumer head"
     (wipe-db)
     (add-messages-to-db)
     (let [results (atom [])
-          handlers {topic1 [(fn [{:keys [logger]} msg]
-                              (log/info logger :fdb-test/simple-test msg)
-                              (swap! results conj msg))]}
+          handlers {topic1 [(with-meta (fn [{:keys [logger]} msg]
+                                         (log/info logger :fdb-test/simple-test msg)
+                                         (swap! results conj msg))
+                              {:handler-name "simple"})]}
           context {:threads 10
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple
@@ -99,9 +101,10 @@
     (wipe-db ["the" "subspace"])
     (add-messages-to-db ["the" "subspace"])
     (let [results (atom [])
-          handlers {topic1 [(fn [{:keys [logger]} msg]
-                              (log/info logger :fdb-test/simple-test-with-subspace msg)
-                              (swap! results conj msg))]}
+          handlers {topic1 [(with-meta (fn [{:keys [logger]} msg]
+                                         (log/info logger :fdb-test/simple-test-with-subspace msg)
+                                         (swap! results conj msg))
+                              {:handler-name "simple"})]}
           context {:threads 10
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple
@@ -132,9 +135,10 @@
     (wipe-db)
     (producer/put-message topic1 "hello" "Dean")
     (let [results (atom [])
-          handlers {topic1 [(fn [{:keys [logger]} msg]
-                              (log/info logger :fdb-test/send-receive-message msg)
-                              (swap! results conj msg))]}
+          handlers {topic1 [(with-meta (fn [{:keys [logger]} msg]
+                                         (log/info logger :fdb-test/send-receive-message msg)
+                                         (swap! results conj msg))
+                              {:handler-name "simple"})]}
           context {:threads 10
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple
@@ -159,10 +163,10 @@
    (d/with-transaction {}
      #(do
         (d/put-all {:tx % :logger (log/->StdoutLogger)}
-                   (->> [[[consumer-processing-key-part topic1 consumer1 "msg01" "001"] [processor-status-available node1 "2024-08-08T14:48:24.000-00:00"]]
-                         [[consumer-processing-key-part topic1 consumer1 "msg02" "002"] [processor-status-processing node1 "2024-08-08T14:48:24.000-00:00"]]
-                         [[consumer-processing-key-part topic1 consumer1 "msg03" "001"] [processor-status-available node1 "2024-08-08T14:48:25.000-00:00"]]
-                         [[consumer-processing-key-part topic1 consumer1 "msg04" "002"] [processor-status-processing node1 "2024-08-08T14:48:25.000-00:00"]]]
+                   (->> [[[consumer-processing-key-part topic1 consumer1 "msg01" "001" "hondler"] [processor-status-available node1 "2024-08-08T14:48:24.000-00:00"]]
+                         [[consumer-processing-key-part topic1 consumer1 "msg02" "002" "hondler"] [processor-status-processing node1 "2024-08-08T14:48:24.000-00:00"]]
+                         [[consumer-processing-key-part topic1 consumer1 "msg03" "001" "hondler"] [processor-status-available node1 "2024-08-08T14:48:25.000-00:00"]]
+                         [[consumer-processing-key-part topic1 consumer1 "msg04" "002" "hondler"] [processor-status-processing node1 "2024-08-08T14:48:25.000-00:00"]]]
                         (mapv (fn [[k v]] [(concat subspace k) v]))))))))
 
 (deftest test-resubmit-abandoned
@@ -179,7 +183,7 @@
                                         :node node1}
                                (fn [_ _ to-resubmit]
                                  (reset! results to-resubmit)))
-      (is (= [["msg01" "001"]]
+      (is (= [["msg01" "001" "hondler"]]
              @results))))
   (testing "Old available and processing messages are resubmitted"
     (wipe-db)
@@ -196,5 +200,5 @@
                                         :node node1}
                                (fn [_ _ to-resubmit]
                                  (reset! results to-resubmit)))
-      (is (= [["msg01" "001"] ["msg02" "002"]]
+      (is (= [["msg01" "001" "hondler"] ["msg02" "002" "hondler"]]
              @results)))))

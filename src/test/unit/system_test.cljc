@@ -33,15 +33,17 @@
                                             :node node
                                             :key key
                                             :messageid messageid
-                                            :handler handler})))))))
+                                            :handler handler
+                                            :handler-name "system-test/simple-test"})))))))
 
 (deftest simple-test
   (testing "System reads all messages and marks the consumer head"
     (reset-db)
     (let [results (atom [])
-          handlers {topic1 [(fn [{:keys [logger]} msg]
-                              (log/info logger :system-test/simple-test msg)
-                              (swap! results conj msg))]}
+          handlers {topic1 [(with-meta (fn [{:keys [logger]} msg]
+                                         (log/info logger :system-test/simple-test msg)
+                                         (swap! results conj msg))
+                              {:handler-name "system-test/simple-test"})]}
           context {:threads 10
                    :current-timestamp-function (constantly "2024-08-08T14:48:26.715-00:00")
                    :notify-processors notify-processors-simple

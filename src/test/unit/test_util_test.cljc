@@ -27,4 +27,11 @@
             [[1 2 2 1] 1]]
            (<key-range [1 2 3] {[1 2 2] 0,
                                 [1 2 2 1] 1,
-                                [1 2 3] 2})))))
+                                [1 2 3] 2}))))
+
+  (testing "<key-range selects all keys less than than the key when key is shorter than db keys"
+    (is (= [[[1 2 2 3] 0]
+            [[1 2 2 3 1] 1]]
+           (<key-range [1 2 3] {[1 2 2 3] 0,
+                                [1 2 2 3 1] 1,
+                                [1 2 3 3] 2})))))
