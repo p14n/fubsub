@@ -40,7 +40,6 @@
                    (mark-as-processing ctx-tx data))
                  [ready-to-process? in-flight? still-available?])))
 
-
 (defn process-and-remove-mark [{:keys [get-value handler-context tx-wrapper logger] :as ctx}
                                {:keys [topic messageid key handler
                                        human-readable-id] :as data}]

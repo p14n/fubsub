@@ -22,7 +22,6 @@
       (catch Exception e (log/error logger :core/lock-and-process-message  "Error in processor" e))
       (finally (ccy/release-lock lock-key)))))
 
-
 (defn find-resubmitable [{:keys [resubmit-available-ms resubmit-processing-ms
                                  current-timestamp-function put-all logger] :as ctx
                           :or {resubmit-available-ms 2000}} topic consumer node]
@@ -57,7 +56,6 @@
   (let [to-resubmit (tx-wrapper ctx #(find-resubmitable (u/ctx-with-tx ctx %) topic consumer node))]
     (when (seq to-resubmit)
       (resubmit-function ctx data to-resubmit))))
-
 
 (defn- notify-processors-async
   [{:keys [handlers] :as ctx}

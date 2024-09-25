@@ -64,8 +64,6 @@
                                             :handler handler
                                             :handler-name "simple"})))))))
 
-
-
 (deftest simple-test
   (testing "System reads all messages and marks the consumer head"
     (wipe-db)
