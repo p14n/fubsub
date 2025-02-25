@@ -22,7 +22,6 @@
       (catch Exception e (log/error logger :core/lock-and-process-message  "Error in processor" e))
       (finally (ccy/release-lock lock-key)))))
 
-
 (defn find-resubmitable [{:keys [resubmit-available-ms resubmit-processing-ms
                                  current-timestamp-function put-all logger] :as ctx
                           :or {resubmit-available-ms 2000}} topic consumer node]
@@ -40,7 +39,7 @@
                                       (and (= status processor-status-processing)
                                            (u/first-timestamp-is-earliest timestamp reprocess-processing-threshold)))))
         to-resubmit (->> (concat available processing)
-                         (map #(->> % first (take-last 2) (vec))))]
+                         (map #(->> % first (take-last 3) (vec))))]
     (when (seq processing)
       (put-all ctx (->> processing
                         (map (fn [[k _]] [(u/key-without-subspace ctx k)
@@ -72,7 +71,8 @@
                                            :node node
                                            :key key
                                            :messageid messageid
-                                           :handler handler})))))))
+                                           :handler handler
+                                           :handler-name (u/get-handler-name handler)})))))))
 
 (defn run-resubmit-thread
   [{:keys [logger] :as context}
@@ -80,16 +80,18 @@
   (log/info logger :core/run-resubmit "Running resubmit thread")
   (try (resubmit-abandoned context data
                            (fn [{:keys [handlers]} _ to-resubmit]
-                             (doseq [[msgid key] to-resubmit]
-                               (doseq [handler (get handlers topic)]
-                                 (ccy/run-async
-                                  (fn [] (lock-and-process-message
-                                          context {:topic topic
-                                                   :consumer consumer
-                                                   :node node
-                                                   :key key
-                                                   :messageid msgid
-                                                   :handler handler})))))))
+                             (let [handlers-by-name (u/handlers-by-name handlers topic)]
+                               (doseq [[msgid key handler-name] to-resubmit]
+                                 (let [handler (get handlers-by-name handler-name)]
+                                   (ccy/run-async
+                                    (fn [] (lock-and-process-message
+                                            context {:topic topic
+                                                     :consumer consumer
+                                                     :node node
+                                                     :key key
+                                                     :messageid msgid
+                                                     :handler handler
+                                                     :handler-name handler-name}))))))))
        (catch Exception e (log/error logger :core/run-resubmit "Error in resubmit" e))))
 
 (defn start-topic-consumer [{:keys [logger resubmit-available-ms] :as context}

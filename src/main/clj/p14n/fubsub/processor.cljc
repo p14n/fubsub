@@ -6,31 +6,32 @@
             [p14n.fubsub.util :as u :refer [assoc-if]]
             [p14n.fubsub.logging :as log]))
 
+(defn key-from-processing-record [[[_ _ _ _ k] _]] k)
+(defn msg-id-from-processing-record [[[_ _ _ m] _]] m)
+
 (defn check-for-key-in-flight
   [{:keys [get-range-before] :as ctx}
    {:keys [topic consumer messageid key]}]
-  (some->> (get-range-before ctx [consumer-processing-key-part topic consumer messageid])
-           (filter #(= key (-> % first last)))
-           (map first)
-           (map drop-last)
-           (map last)))
+  (->> (get-range-before ctx [consumer-processing-key-part topic consumer messageid])
+       (filter #(= key (key-from-processing-record %)))
+       (map msg-id-from-processing-record)))
 
 (defn mark-as-processing
   [{:keys [put-all] :as ctx}
-   {:keys [topic consumer messageid key node timestamp]}]
-  (put-all ctx [[[consumer-processing-key-part topic consumer messageid key] [processor-status-processing node timestamp]]]))
+   {:keys [topic consumer messageid key node timestamp handler-name]}]
+  (put-all ctx [[[consumer-processing-key-part topic consumer messageid key handler-name] [processor-status-processing node timestamp]]]))
 
 (defn remove-processing-mark
   [{:keys [compare-and-clear] :as ctx}
-   {:keys [topic consumer messageid key timestamp node]}]
-  (compare-and-clear ctx [[consumer-processing-key-part topic consumer messageid key] [processor-status-processing node timestamp]]))
+   {:keys [topic consumer messageid key timestamp node handler-name]}]
+  (compare-and-clear ctx [[consumer-processing-key-part topic consumer messageid key handler-name] [processor-status-processing node timestamp]]))
 
 (defn check-processable [{:keys [get-value tx-wrapper] :as ctx}
-                         {:keys [topic consumer messageid key] :as data}]
+                         {:keys [topic consumer messageid key handler-name] :as data}]
   (tx-wrapper ctx
               #(let [ctx-tx (merge (u/ctx-with-tx ctx %))
                      in-flight (check-for-key-in-flight ctx-tx data)
-                     [status] (get-value ctx-tx [consumer-processing-key-part topic consumer messageid key])
+                     [status] (get-value ctx-tx [consumer-processing-key-part topic consumer messageid key handler-name])
                      in-flight? (seq in-flight)
                      still-available? (= status processor-status-available)
                      ready-to-process? (and (not in-flight?)
@@ -38,7 +39,6 @@
                  (when ready-to-process?
                    (mark-as-processing ctx-tx data))
                  [ready-to-process? in-flight? still-available?])))
-
 
 (defn process-and-remove-mark [{:keys [get-value handler-context tx-wrapper logger] :as ctx}
                                {:keys [topic messageid key handler
