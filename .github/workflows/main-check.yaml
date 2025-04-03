@@ -19,7 +19,7 @@ jobs:
           java-version: '21.0.4+7.0.LTS'
 
       - name: Install clojure tools
-        uses: DeLaGuardo/setup-clojure@12.5
+        uses: DeLaGuardo/setup-clojure@bc7570e912b028bbcc22f457adec7fdf98e2f4ed # 12.5
         with:
           cli: 1.11.1.1435              # Clojure CLI based on tools.deps
           clj-kondo: 2024.02.12        # Clj-kondo
